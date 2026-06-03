@@ -1,81 +1,60 @@
-# GitHub Actions Multi-Platform Build Design
+# Проектирование мультиплатформенной сборки GitHub Actions
 
-**Date:** 2026-04-13
-**Status:** Approved
-**Project:** Anything Analyzer (anything-register)
+**Дата:** 2026-04-13
+**Статус:** утверждено
+**Проект:** Anything Analyzer
 
-## Goal
+## Цель
 
-Set up GitHub Actions CI/CD to build Anything Analyzer for macOS (DMG), Windows (NSIS), and Linux (AppImage), enabling macOS distribution without requiring a local macOS environment.
+Настроить GitHub Actions workflow, который собирает установочные артефакты Electron-приложения для Windows, macOS и Linux.
 
-## Constraints
+## Ограничения
 
-- No Apple code signing or notarization (unsigned DMG)
-- No auto-publish to npm or other registries
-- pnpm as package manager
-- Native dependency: `better-sqlite3` (requires per-platform compilation)
+- Сборка использует `pnpm`.
+- Electron Builder должен получать корректные имена артефактов для разных архитектур.
+- macOS auto-update требует подписанный и нотариально заверенный пакет.
+- Неподписанный DMG можно публиковать как ручной download, но он не подходит для автообновления.
 
-## Trigger Strategy
+## Стратегия запуска
 
-| Trigger | Behavior |
-|---------|----------|
-| `workflow_dispatch` | Manual trigger for testing builds |
-| `push` tags matching `v*` | Auto-build + create GitHub Release with all platform artifacts |
+Workflow запускается:
 
-## Build Matrix
+- вручную через `workflow_dispatch`;
+- при публикации релиза или push tag;
+- при необходимости через отдельный release job.
 
-| Platform | Runner | Architecture | Output |
-|----------|--------|-------------|--------|
-| Windows | `windows-latest` | x64 | `.exe` (NSIS installer) |
-| macOS | `macos-latest` | arm64 (Apple Silicon) | `.dmg` |
-| macOS | `macos-13` | x64 (Intel) | `.dmg` |
-| Linux | `ubuntu-latest` | x64 | `.AppImage` |
+## Матрица сборки
 
-### Why Two macOS Runners
+| Платформа | Runner | Артефакт |
+| --- | --- | --- |
+| Windows x64 | `windows-latest` | NSIS installer |
+| macOS arm64 | `macos-latest` или arm runner | DMG |
+| macOS x64 | macOS runner x64 | DMG |
+| Linux x64 | `ubuntu-latest` | AppImage |
 
-- `macos-latest` resolves to an Apple Silicon (arm64) runner
-- `macos-13` is the last Intel (x64) runner available on GitHub Actions
-- Each runner builds its native architecture, avoiding cross-compilation complexity with `better-sqlite3`
+Два macOS runner нужны, чтобы получать корректные `arm64` и `x64` артефакты без ненадёжной кросс-сборки.
 
-## Build Pipeline (Per Platform)
+## Pipeline
 
-1. **Checkout** — `actions/checkout@v4`
-2. **Setup pnpm** — `pnpm/action-setup@v4`
-3. **Setup Node.js 20** — `actions/setup-node@v4` with pnpm cache
-4. **Install dependencies** — `pnpm install` (triggers `postinstall` → `electron-builder install-app-deps` for native module compilation)
-5. **Build** — `pnpm run build` (electron-vite compiles main/preload/renderer)
-6. **Package** — `npx electron-builder --publish never` (platform auto-detected from runner OS)
-7. **Upload artifacts** — `actions/upload-artifact@v4` uploads `dist/` contents
-8. **Release** (tag builds only) — `softprops/action-gh-release@v2` attaches installers to GitHub Release
+Для каждой платформы:
 
-## File Changes
+1. Checkout.
+2. Setup Node.js.
+3. Setup pnpm.
+4. Install dependencies.
+5. Run tests.
+6. Run `pnpm build`.
+7. Run Electron Builder for target platform.
+8. Upload artifacts.
 
-| File | Action | Description |
-|------|--------|-------------|
-| `.github/workflows/build.yml` | Create | CI/CD workflow definition |
-| `electron-builder.yml` | No change | Existing config already supports all three platforms |
-| `package.json` | No change | Build scripts already correct |
+## Изменения файлов
 
-## Unsigned macOS DMG Notes
+- `.github/workflows/*`: workflow сборки.
+- `electron-builder.yml`: имена артефактов и target-платформы.
+- Документация релиза: требования к signing secrets.
 
-Users downloading the unsigned DMG will encounter Gatekeeper warnings. To open:
-- Right-click the `.dmg` → Open, or
-- System Settings > Privacy & Security > click "Open Anyway"
+## Риски
 
-This is standard behavior for unsigned macOS apps and cannot be avoided without an Apple Developer certificate ($99/year).
-
-## Artifact Naming
-
-electron-builder auto-generates artifact names based on `productName` and `version` from config:
-- `Anything Analyzer Setup 2.0.0.exe`
-- `Anything Analyzer-2.0.0.dmg` (arm64)
-- `Anything Analyzer-2.0.0.dmg` (x64) — needs differentiation
-- `Anything Analyzer-2.0.0.AppImage`
-
-To distinguish macOS architectures, configure `artifactName` in `electron-builder.yml`:
-```yaml
-mac:
-  artifactName: "${productName}-${version}-${arch}.${ext}"
-```
-
-This produces: `Anything Analyzer-2.0.0-arm64.dmg` and `Anything Analyzer-2.0.0-x64.dmg`.
+- Нативные зависимости могут требовать платформенных build tools.
+- macOS signing secrets нельзя подменять тестовыми значениями.
+- Auto-update для macOS не должен публиковаться без подписи и notarization.

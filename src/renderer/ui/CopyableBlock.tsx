@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import styles from './CopyableBlock.module.css'
 import { IconCheck } from './Icons'
+import { useLocale } from '../i18n'
 
 interface CopyableBlockProps {
   content: string
@@ -9,6 +10,7 @@ interface CopyableBlockProps {
 }
 
 export const CopyableBlock: React.FC<CopyableBlockProps> = ({ content, label, maxHeight = 400 }) => {
+  const { t } = useLocale()
   const [copied, setCopied] = useState(false)
 
   const handleCopy = useCallback(async () => {
@@ -26,7 +28,7 @@ export const CopyableBlock: React.FC<CopyableBlockProps> = ({ content, label, ma
       {label && <div className={styles.label}>{label}</div>}
       <div className={styles.block} style={{ maxHeight }}>
         <pre className={styles.content}>{content}</pre>
-        <button className={styles.copyBtn} onClick={handleCopy} title="Copy">
+        <button className={styles.copyBtn} onClick={handleCopy} title={copied ? t('common.copied') : t('common.copy')}>
           {copied ? (
             <IconCheck size={12} />
           ) : (

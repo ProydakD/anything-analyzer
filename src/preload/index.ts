@@ -69,12 +69,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("data:clear", sessionId),
 
   // AI analysis
-  startAnalysis: (sessionId: string, purpose?: string, selectedSeqs?: number[]) =>
-    ipcRenderer.invoke("ai:analyze", sessionId, purpose, selectedSeqs),
+  startAnalysis: (sessionId: string, purpose?: string, selectedSeqs?: number[], locale?: string) =>
+    ipcRenderer.invoke("ai:analyze", sessionId, purpose, selectedSeqs, locale),
   cancelAnalysis: (sessionId: string) =>
     ipcRenderer.invoke("ai:cancel", sessionId),
-  sendFollowUp: (sessionId: string, reportId: string, history: unknown[], userMessage: string) =>
-    ipcRenderer.invoke("ai:chat", sessionId, reportId, history, userMessage),
+  sendFollowUp: (sessionId: string, reportId: string, history: unknown[], userMessage: string, locale?: string) =>
+    ipcRenderer.invoke("ai:chat", sessionId, reportId, history, userMessage, locale),
   getChatMessages: (reportId: string) =>
     ipcRenderer.invoke("data:chatMessages", reportId),
   saveChatMessages: (reportId: string, messages: unknown[]) =>
@@ -102,7 +102,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   // Prompt Templates
-  getPromptTemplates: () => ipcRenderer.invoke("templates:list"),
+  getPromptTemplates: (locale?: string) => ipcRenderer.invoke("templates:list", locale),
   savePromptTemplate: (template: unknown) =>
     ipcRenderer.invoke("templates:save", template),
   deletePromptTemplate: (id: string) =>

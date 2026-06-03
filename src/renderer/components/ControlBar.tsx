@@ -36,15 +36,15 @@ const ControlBar: React.FC<ControlBarProps> = ({
   isAnalyzing = false,
   selectedSeqCount = 0,
 }) => {
-  const { t } = useLocale()
+  const { locale, t } = useLocale()
   const [purposeId, setPurposeId] = useState<string>('auto')
   const [customText, setCustomText] = useState('')
   const [customExpanded, setCustomExpanded] = useState(false)
   const [templates, setTemplates] = useState<PromptTemplate[]>([])
 
   useEffect(() => {
-    window.electronAPI.getPromptTemplates().then(setTemplates).catch(() => {})
-  }, [])
+    window.electronAPI.getPromptTemplates(locale).then(setTemplates).catch(() => {})
+  }, [locale])
 
   const isRunning = status === 'running'
   const isPaused = status === 'paused'

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { IconMinimize, IconMaximize, IconClose, IconGlobe, IconCode, IconRobot } from '../ui/Icons'
 import { useLocale } from '../i18n'
-import type { LocaleKey } from '../i18n'
+import type { Locale, LocaleKey } from '../i18n'
 import { THEMES } from '../theme'
 import styles from './Titlebar.module.css'
 
@@ -10,7 +10,7 @@ export type AppView = 'browser' | 'inspector' | 'report'
 interface TitlebarProps {
   theme: string
   onThemeChange: (themeId: string) => void
-  locale: 'en' | 'zh'
+  locale: Locale
   onLocaleToggle: () => void
   activeView: AppView
   onViewChange: (view: AppView) => void
@@ -100,10 +100,12 @@ const Titlebar: React.FC<TitlebarProps> = ({
       {/* Right controls */}
       <div className={styles.rightControls}>
         {/* Language toggle */}
-        <button className={styles.langSwitch} onClick={onLocaleToggle}>
+        <button className={styles.langSwitch} onClick={onLocaleToggle} title={t('titlebar.switchLanguage')}>
           <span className={locale === 'zh' ? styles.langActive : ''}>中</span>
           {' / '}
           <span className={locale === 'en' ? styles.langActive : ''}>En</span>
+          {' / '}
+          <span className={locale === 'ru' ? styles.langActive : ''}>Ru</span>
         </button>
 
         {/* Theme selector */}
@@ -111,7 +113,7 @@ const Titlebar: React.FC<TitlebarProps> = ({
           <button
             className={styles.actionBtn}
             onClick={() => setThemeOpen(prev => !prev)}
-            title={locale === 'zh' ? '切换主题' : 'Switch theme'}
+            title={t('titlebar.switchTheme')}
           >
             <span
               style={{
@@ -138,7 +140,7 @@ const Titlebar: React.FC<TitlebarProps> = ({
                     style={{ background: t.accent }}
                   />
                   <span className={styles.themeName}>
-                    {locale === 'zh' ? t.name : t.nameEn}
+                    {locale === 'zh' ? t.name : locale === 'ru' ? t.nameRu : t.nameEn}
                   </span>
                   {theme === t.id && <span className={styles.themeCheck}>✓</span>}
                 </button>

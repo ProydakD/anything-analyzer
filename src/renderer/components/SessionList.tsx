@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Button, Input, Modal, Empty } from '../ui'
 import { IconPlus, IconDelete } from '../ui/Icons'
 import { useLocale } from '../i18n'
+import type { LocaleKey } from '../i18n'
 import type { Session } from '../../shared/types'
 import styles from './SessionList.module.css'
 
@@ -26,7 +27,7 @@ function getDotColor(session: Session): string {
   return 'var(--text-disabled)'
 }
 
-function getStatusInfo(session: Session): { symbol: string; color: string; labelKey: string } {
+function getStatusInfo(session: Session): { symbol: string; color: string; labelKey: LocaleKey } {
   if (session.status === 'running') return { symbol: '●', color: 'var(--color-success)', labelKey: 'capture.running' }
   if (session.status === 'paused') return { symbol: '⏸', color: 'var(--color-warning)', labelKey: 'capture.paused' }
   return { symbol: '■', color: 'var(--text-muted)', labelKey: 'capture.stopped' }
@@ -89,7 +90,7 @@ const SessionList: React.FC<SessionListProps> = ({
   const validate = (): boolean => {
     let valid = true
     if (!formName.trim()) {
-      setNameError('Please enter a session name')
+      setNameError(t('session.nameRequired'))
       valid = false
     } else {
       setNameError('')
@@ -99,7 +100,7 @@ const SessionList: React.FC<SessionListProps> = ({
         new URL(formUrl)
         setUrlError('')
       } catch {
-        setUrlError('Please enter a valid URL')
+        setUrlError(t('session.invalidUrl'))
         valid = false
       }
     } else {
@@ -137,7 +138,7 @@ const SessionList: React.FC<SessionListProps> = ({
     <div className={styles.container}>
       {/* Section header with count */}
       <div className={styles.sectionHeader}>
-        <span className={styles.sectionLabel}>SESSIONS</span>
+        <span className={styles.sectionLabel}>{t('session.section').toUpperCase()}</span>
         {sessions.length > 0 && (
           <span className={styles.sectionCount}>{sessions.length}</span>
         )}
@@ -146,7 +147,7 @@ const SessionList: React.FC<SessionListProps> = ({
       {/* Session list */}
       <div className={styles.list}>
         {sessions.length === 0 ? (
-          <Empty description="No sessions" style={{ marginTop: 40 }} />
+          <Empty description={t('session.noSessions')} style={{ marginTop: 40 }} />
         ) : (
           sessions.map((session) => {
             const isActive = session.id === currentSessionId
@@ -169,9 +170,9 @@ const SessionList: React.FC<SessionListProps> = ({
                 <div className={styles.sessionInfo}>
                   <div className={styles.sessionName}>{session.name}</div>
                   <div className={styles.sessionMeta}>
-                    <span style={{ color: status.color }}>{status.symbol} {t(status.labelKey as any)}</span>
+                    <span style={{ color: status.color }}>{status.symbol} {t(status.labelKey)}</span>
                     {isActive && activeRequestCount > 0 && (
-                      <span className={styles.sessionCount}> · {activeRequestCount} reqs</span>
+                      <span className={styles.sessionCount}> · {t('session.requestCount', { count: activeRequestCount })}</span>
                     )}
                   </div>
                   {domain && <div className={styles.sessionUrl}>{domain}</div>}
@@ -236,7 +237,7 @@ const SessionList: React.FC<SessionListProps> = ({
             onChange={(e) => setFormUrl(e.target.value)}
             placeholder={t('session.targetUrlPlaceholder')}
           />
-          <div className={styles.formHint}>Leave empty to capture traffic via proxy only</div>
+          <div className={styles.formHint}>{t('session.proxyOnlyHint')}</div>
           {urlError && <div className={styles.formError}>{urlError}</div>}
         </div>
       </Modal>

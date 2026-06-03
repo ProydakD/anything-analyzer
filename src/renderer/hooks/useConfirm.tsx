@@ -1,12 +1,14 @@
 import React, { useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '../ui'
+import { useLocale } from '../i18n'
 
 /**
  * useConfirm — lightweight confirmation dialog rendered via Portal.
  * Cross-platform safe (no window.confirm dependency).
  */
 export function useConfirm() {
+  const { t } = useLocale()
   const [state, setState] = useState<{
     message: string
     okText?: string
@@ -75,10 +77,10 @@ export function useConfirm() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <Button size="sm" onClick={handleCancel}>
-                {state.cancelText || 'Cancel'}
+                {state.cancelText || t('common.cancel')}
               </Button>
               <Button size="sm" variant="danger" onClick={handleOk}>
-                {state.okText || 'OK'}
+                {state.okText || t('common.ok')}
               </Button>
             </div>
           </div>

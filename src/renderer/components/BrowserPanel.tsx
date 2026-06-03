@@ -55,11 +55,11 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({
     <div className={styles.panel}>
       {/* Navigation buttons */}
       <div className={styles.navBtns}>
-        <Button variant="ghost" size="sm" iconOnly icon={<IconArrowLeft size={14} />} onClick={onBack} title="Back" />
-        <Button variant="ghost" size="sm" iconOnly icon={<IconArrowRight size={14} />} onClick={onForward} title="Forward" />
-        <Button variant="ghost" size="sm" iconOnly icon={<IconReload size={14} />} onClick={onReload} title="Reload" />
+        <Button variant="ghost" size="sm" iconOnly icon={<IconArrowLeft size={14} />} onClick={onBack} title={t('browser.back')} />
+        <Button variant="ghost" size="sm" iconOnly icon={<IconArrowRight size={14} />} onClick={onForward} title={t('browser.forward')} />
+        <Button variant="ghost" size="sm" iconOnly icon={<IconReload size={14} />} onClick={onReload} title={t('browser.reload')} />
         {onToggleDevTools && (
-          <Button variant="ghost" size="sm" iconOnly icon={<IconCode size={14} />} title="DevTools" onClick={onToggleDevTools} />
+          <Button variant="ghost" size="sm" iconOnly icon={<IconCode size={14} />} title={t('browser.devTools')} onClick={onToggleDevTools} />
         )}
         {onClearEnv && (
           <Button variant="ghost" size="sm" iconOnly icon={<IconDelete size={14} />} title={t('data.clearEnv')} onClick={onClearEnv} />
@@ -73,9 +73,9 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({
           value={addressValue}
           onChange={(e) => setAddressValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Enter URL..."
+          placeholder={t('browser.addressPlaceholder')}
         />
-        <Button variant="ghost" size="sm" iconOnly icon={<IconSend size={14} />} onClick={handleNavigate} title="Navigate" />
+        <Button variant="ghost" size="sm" iconOnly icon={<IconSend size={14} />} onClick={handleNavigate} title={t('browser.navigate')} />
       </div>
 
       {/* Capture controls slot */}

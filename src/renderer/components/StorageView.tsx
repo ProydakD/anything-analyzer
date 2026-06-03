@@ -2,16 +2,18 @@ import React, { useMemo } from 'react'
 import { Collapse, Tag, Empty, Timeline } from '../ui'
 import { IconShield, IconDatabase, IconApp } from '../ui/Icons'
 import type { StorageSnapshot, StorageType } from '@shared/types'
+import { useLocale } from '../i18n'
+import type { LocaleKey } from '../i18n'
 import styles from './StorageView.module.css'
 
 interface StorageViewProps {
   snapshots: StorageSnapshot[]
 }
 
-const STORAGE_META: Record<StorageType, { label: string; icon: React.ReactNode; color: 'orange' | 'info' | 'success' }> = {
-  cookie: { label: 'Cookies', icon: <IconShield size={14} />, color: 'orange' },
-  localStorage: { label: 'Local Storage', icon: <IconDatabase size={14} />, color: 'info' },
-  sessionStorage: { label: 'Session Storage', icon: <IconApp size={14} />, color: 'success' },
+const STORAGE_META: Record<StorageType, { labelKey: LocaleKey; icon: React.ReactNode; color: 'orange' | 'info' | 'success' }> = {
+  cookie: { labelKey: 'storage.cookies', icon: <IconShield size={14} />, color: 'orange' },
+  localStorage: { labelKey: 'storage.localStorage', icon: <IconDatabase size={14} />, color: 'info' },
+  sessionStorage: { labelKey: 'storage.sessionStorage', icon: <IconApp size={14} />, color: 'success' },
 }
 
 function parseStorageData(data: string): Array<{ key: string; value: string }> {
@@ -50,12 +52,14 @@ function computeDiff(
 const DIFF_COLORS: Record<string, 'success' | 'error' | 'info'> = { added: 'success', removed: 'error', changed: 'info' }
 
 // KV Table using plain HTML table
-const KVTable: React.FC<{ entries: Array<{ key: string; value: string }> }> = ({ entries }) => (
+const KVTable: React.FC<{ entries: Array<{ key: string; value: string }> }> = ({ entries }) => {
+  const { t } = useLocale()
+  return (
   <table className={styles.kvTable}>
     <thead>
       <tr>
-        <th style={{ width: '35%' }}>Key</th>
-        <th>Value</th>
+        <th style={{ width: '35%' }}>{t('storage.key')}</th>
+        <th>{t('storage.value')}</th>
       </tr>
     </thead>
     <tbody>
@@ -67,10 +71,12 @@ const KVTable: React.FC<{ entries: Array<{ key: string; value: string }> }> = ({
       ))}
     </tbody>
   </table>
-)
+  )
+}
 
 // Diff timeline
 const DiffTimeline: React.FC<{ snapshots: StorageSnapshot[] }> = ({ snapshots }) => {
+  const { t } = useLocale()
   if (snapshots.length < 2) return null
 
   const sorted = [...snapshots].sort((a, b) => a.timestamp - b.timestamp)
@@ -91,7 +97,7 @@ const DiffTimeline: React.FC<{ snapshots: StorageSnapshot[] }> = ({ snapshots })
           <div style={{ marginTop: 4 }}>
             {diffs.map(d => (
               <div key={d.key} style={{ marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Tag color={DIFF_COLORS[d.action]}>{d.action}</Tag>
+                <Tag color={DIFF_COLORS[d.action]}>{t(`storage.${d.action}` as LocaleKey)}</Tag>
                 <code className={styles.codeInline}>{d.key}</code>
                 {d.newValue && (
                   <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginLeft: 4 }}>
@@ -110,7 +116,7 @@ const DiffTimeline: React.FC<{ snapshots: StorageSnapshot[] }> = ({ snapshots })
 
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontWeight: 600, fontSize: 'var(--font-size-base)', color: 'var(--text-primary)', marginBottom: 8 }}>Changes Timeline</div>
+      <div style={{ fontWeight: 600, fontSize: 'var(--font-size-base)', color: 'var(--text-primary)', marginBottom: 8 }}>{t('storage.changesTimeline')}</div>
       <Timeline items={items} />
     </div>
   )
@@ -118,7 +124,9 @@ const DiffTimeline: React.FC<{ snapshots: StorageSnapshot[] }> = ({ snapshots })
 
 // Single storage type section
 const StorageSection: React.FC<{ type: StorageType; snapshots: StorageSnapshot[] }> = ({ type, snapshots }) => {
+  const { t } = useLocale()
   const meta = STORAGE_META[type]
+  const label = t(meta.labelKey)
   const sorted = [...snapshots].sort((a, b) => b.timestamp - a.timestamp)
   const latestEntries = sorted.length > 0 ? parseStorageData(sorted[0].data) : []
 
@@ -127,19 +135,24 @@ const StorageSection: React.FC<{ type: StorageType; snapshots: StorageSnapshot[]
       {latestEntries.length > 0 ? (
         <>
           <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginBottom: 8 }}>
-            Latest snapshot: {new Date(sorted[0].timestamp).toLocaleString()} | {latestEntries.length} entries | Domain: {sorted[0].domain}
+            {t('storage.latestSnapshot', {
+              time: new Date(sorted[0].timestamp).toLocaleString(),
+              count: latestEntries.length,
+              domain: sorted[0].domain,
+            })}
           </div>
           <KVTable entries={latestEntries} />
           {sorted.length > 1 && <DiffTimeline snapshots={sorted} />}
         </>
       ) : (
-        <Empty description={`No ${meta.label.toLowerCase()} data`} />
+        <Empty description={t('storage.noTypeData', { type: label.toLowerCase() })} />
       )}
     </div>
   )
 }
 
 const StorageView: React.FC<StorageViewProps> = ({ snapshots }) => {
+  const { t } = useLocale()
   const grouped = useMemo(() => {
     const groups: Record<StorageType, StorageSnapshot[]> = { cookie: [], localStorage: [], sessionStorage: [] }
     for (const snap of snapshots) {
@@ -151,7 +164,7 @@ const StorageView: React.FC<StorageViewProps> = ({ snapshots }) => {
   if (snapshots.length === 0) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
-        <Empty description="No storage snapshots captured yet" />
+        <Empty description={t('storage.empty')} />
       </div>
     )
   }
@@ -164,8 +177,8 @@ const StorageView: React.FC<StorageViewProps> = ({ snapshots }) => {
       label: (
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {meta.icon}
-          <span>{meta.label}</span>
-          {count > 0 && <Tag color={meta.color}>{count} snapshot{count > 1 ? 's' : ''}</Tag>}
+          <span>{t(meta.labelKey)}</span>
+          {count > 0 && <Tag color={meta.color}>{t(count === 1 ? 'storage.snapshotCount' : 'storage.snapshotCountPlural', { count })}</Tag>}
         </span>
       ),
       children: <StorageSection type={type} snapshots={grouped[type]} />,

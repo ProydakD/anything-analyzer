@@ -1,6 +1,6 @@
 # Anything Analyzer
 
-[English](README.en.md) | [简体中文](README.md)
+[English](README.en.md) | [Русский](README.md)
 
 > **Web pages, desktop apps, terminal commands, Python scripts, mobile apps -- no matter where traffic comes from, capture it and let AI reverse engineer it automatically.**
 

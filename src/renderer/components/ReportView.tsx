@@ -159,9 +159,9 @@ const ReportView: React.FC<ReportViewProps> = ({
     let content = report.report_content
     const followUps = chatHistory.slice(2)
     if (followUps.length > 0) {
-      content += '\n\n---\n\n## Follow-up Chat\n'
+      content += `\n\n---\n\n## ${t('report.followUpChat')}\n`
       for (const msg of followUps) {
-        const label = msg.role === 'user' ? '**User**' : '**AI**'
+        const label = msg.role === 'user' ? `**${t('report.user')}**` : '**AI**'
         content += `\n${label}:\n\n${stripToolContext(msg.content)}\n`
       }
     }
@@ -194,7 +194,7 @@ const ReportView: React.FC<ReportViewProps> = ({
       {/* Key endpoints */}
       {endpoints.length > 0 && (
         <div className={styles.contextSection}>
-          <div className={styles.contextLabel}>Endpoints</div>
+          <div className={styles.contextLabel}>{t('report.endpoints')}</div>
           {endpoints.map((ep, i) => (
             <div key={i} className={styles.contextEndpoint}>
               <span className={styles.contextMethod} style={{ color: getMethodColor(ep.method) }}>
@@ -230,7 +230,7 @@ const ReportView: React.FC<ReportViewProps> = ({
           {report.prompt_tokens != null && report.completion_tokens != null && (
             <div className={styles.contextItem}>
               <div className={styles.contextDot} style={{ background: 'var(--color-success)' }} />
-              {formatTokens(report.prompt_tokens + report.completion_tokens)} tokens
+              {formatTokens(report.prompt_tokens + report.completion_tokens)} {t('report.tokens')}
             </div>
           )}
         </div>
@@ -344,7 +344,7 @@ const ReportView: React.FC<ReportViewProps> = ({
             {chatHistory.slice(2).map((msg, i) => (
               <div key={i} className={`${styles.chatMsg} ${msg.role === 'user' ? styles.chatMsgUser : styles.chatMsgAi}`}>
                 <Tag color={msg.role === 'user' ? 'info' : 'success'} style={{ marginBottom: 4 }}>
-                  {msg.role === 'user' ? 'You' : 'AI'}
+                  {msg.role === 'user' ? t('report.user') : 'AI'}
                 </Tag>
                 <div className="report-markdown-content">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>

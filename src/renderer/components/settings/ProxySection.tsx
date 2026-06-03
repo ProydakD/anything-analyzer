@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Input, PasswordInput, Select, InputNumber, Button, useToast } from '../../ui'
 import type { ProxyConfig } from '@shared/types'
+import { useLocale } from '../../i18n'
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -15,6 +16,7 @@ const fieldStyle: React.CSSProperties = {
 
 export default function ProxySection() {
   const toast = useToast()
+  const { t } = useLocale()
   const [proxyType, setProxyType] = useState<ProxyConfig['type']>('none')
   const [host, setHost] = useState('')
   const [port, setPort] = useState(1080)
@@ -35,23 +37,23 @@ export default function ProxySection() {
 
   const handleSave = async () => {
     if (proxyType !== 'none' && !host) {
-      toast.warning('请输入代理主机')
+      toast.warning(t('proxy.hostRequired'))
       return
     }
     const config: ProxyConfig = { type: proxyType, host, port, username, password }
     await window.electronAPI.saveProxyConfig(config)
-    toast.success('代理设置已保存并生效')
+    toast.success(t('proxy.saved'))
   }
 
   return (
     <div>
       <div style={fieldStyle}>
-        <label style={labelStyle}>代理类型</label>
+        <label style={labelStyle}>{t('proxy.type')}</label>
         <Select
           value={proxyType}
           onChange={v => setProxyType(v as ProxyConfig['type'])}
           options={[
-            { label: '无代理 (直连)', value: 'none' },
+            { label: t('proxy.none'), value: 'none' },
             { label: 'HTTP', value: 'http' },
             { label: 'HTTPS', value: 'https' },
             { label: 'SOCKS5', value: 'socks5' },
@@ -62,7 +64,7 @@ export default function ProxySection() {
       {proxyType && proxyType !== 'none' && (
         <>
           <div style={fieldStyle}>
-            <label style={labelStyle}>主机 *</label>
+            <label style={labelStyle}>{t('proxy.host')}</label>
             <Input
               value={host}
               onChange={e => setHost(e.target.value)}
@@ -71,7 +73,7 @@ export default function ProxySection() {
           </div>
 
           <div style={fieldStyle}>
-            <label style={labelStyle}>端口 *</label>
+            <label style={labelStyle}>{t('proxy.port')}</label>
             <InputNumber
               value={port}
               onChange={v => v !== null && setPort(v)}
@@ -83,27 +85,27 @@ export default function ProxySection() {
           </div>
 
           <div style={fieldStyle}>
-            <label style={labelStyle}>用户名（可选）</label>
+            <label style={labelStyle}>{t('proxy.username')}</label>
             <Input
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="留空则无认证"
+              placeholder={t('proxy.optionalAuthPlaceholder')}
             />
           </div>
 
           <div style={fieldStyle}>
-            <label style={labelStyle}>密码（可选）</label>
+            <label style={labelStyle}>{t('proxy.password')}</label>
             <PasswordInput
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="留空则无认证"
+              placeholder={t('proxy.optionalAuthPlaceholder')}
             />
           </div>
         </>
       )}
 
       <Button variant="primary" block onClick={handleSave}>
-        保存代理设置
+        {t('proxy.save')}
       </Button>
     </div>
   )

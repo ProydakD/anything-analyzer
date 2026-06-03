@@ -17,71 +17,71 @@ export class SceneDetector {
     const scenesMap = new Map<string, { hint: SceneHint; count: number }>()
     const trackScenes: SceneHint[] = []
 
-    // 单次遍历所有请求
+    // Single pass over all requests.
     for (const req of requests) {
-      // AI Chat - SSE 响应
+      // AI Chat - SSE response
       if (this.isSSEResponse(req) && this.matchesAiApiPattern(req)) {
-        this.addSceneHint(scenesMap, 'ai-chat', 'high', 'SSE 响应检测到 text/event-stream', req.seq)
+        this.addSceneHint(scenesMap, 'ai-chat', 'high', 'SSE-ответ с text/event-stream', req.seq)
       }
 
-      // AI Chat - API 路径特征
+      // AI Chat - API path patterns
       if (this.matchesAiApiPattern(req)) {
-        this.addSceneHint(scenesMap, 'ai-chat', 'high', 'API 特征路径检测', req.seq)
+        this.addSceneHint(scenesMap, 'ai-chat', 'high', 'Обнаружен характерный API path', req.seq)
       }
 
-      // AI Chat - 请求体特征
+      // AI Chat - request body patterns
       if (this.hasAiPayloadFields(req)) {
-        this.addSceneHint(scenesMap, 'ai-chat', 'medium', 'AI 典型字段', req.seq)
+        this.addSceneHint(scenesMap, 'ai-chat', 'medium', 'Типичные AI-поля', req.seq)
       }
 
-      // OAuth 场景
+      // OAuth scenario
       if (this.matchesOAuthPattern(req)) {
-        this.addSceneHint(scenesMap, 'auth-oauth', 'high', '/oauth 路径或 redirect_uri 参数', req.seq)
+        this.addSceneHint(scenesMap, 'auth-oauth', 'high', 'Путь /oauth или параметр redirect_uri', req.seq)
       }
 
-      // Token 鉴权
+      // Token authentication
       if (this.hasTokenInResponse(req) || this.hasBearerAuth(req)) {
-        this.addSceneHint(scenesMap, 'auth-token', 'high', 'Token 鉴权', req.seq)
+        this.addSceneHint(scenesMap, 'auth-token', 'high', 'Token-аутентификация', req.seq)
       }
 
-      // Session 鉴权
+      // Session authentication
       if (this.hasSessionCookie(req)) {
-        this.addSceneHint(scenesMap, 'auth-session', 'medium', 'Set-Cookie 响应', req.seq)
+        this.addSceneHint(scenesMap, 'auth-session', 'medium', 'Ответ Set-Cookie', req.seq)
       }
 
-      // 注册场景
+      // Registration scenario
       if (this.matchesRegistrationPattern(req)) {
-        this.addSceneHint(scenesMap, 'registration', 'high', '/register|/signup 路径和 email/password 字段', req.seq)
+        this.addSceneHint(scenesMap, 'registration', 'high', 'Путь /register или /signup и поля email/password', req.seq)
       }
 
-      // 登录场景
+      // Login scenario
       if (this.matchesLoginPattern(req)) {
-        this.addSceneHint(scenesMap, 'login', 'high', '/login|/signin 路径和 password 字段', req.seq)
+        this.addSceneHint(scenesMap, 'login', 'high', 'Путь /login или /signin и поле password', req.seq)
       }
 
-      // WebSocket 场景
+      // WebSocket scenario
       if (this.isWebSocketRequest(req)) {
-        this.addSceneHint(scenesMap, 'websocket', 'high', 'Upgrade: websocket 请求头', req.seq)
+        this.addSceneHint(scenesMap, 'websocket', 'high', 'Заголовок Upgrade: websocket', req.seq)
       }
 
-      // SSE 流场景 - 仅在非 AI Chat 时标记为 sse-stream
+      // SSE stream scenario - only mark as sse-stream when it is not AI chat.
       if (this.isSSEResponse(req) && !this.matchesAiApiPattern(req)) {
-        this.addSceneHint(scenesMap, 'sse-stream', 'high', 'SSE 流响应', req.seq)
+        this.addSceneHint(scenesMap, 'sse-stream', 'high', 'Потоковый SSE-ответ', req.seq)
       }
 
-      // 通用 API 场景
+      // Generic API scenario
       if (this.isJsonResponse(req)) {
-        this.addSceneHint(scenesMap, 'api-general', 'low', 'JSON API 请求/响应', req.seq)
+        this.addSceneHint(scenesMap, 'api-general', 'low', 'JSON API запрос/ответ', req.seq)
       }
 
-      // 加密操作场景
+      // Crypto operation scenario
       if (this.hasCryptoHooks(req)) {
-        this.addSceneHint(scenesMap, 'crypto-encryption', 'high', '检测到加密/签名/哈希操作 Hook', req.seq)
+        this.addSceneHint(scenesMap, 'crypto-encryption', 'high', 'Обнаружен hook шифрования, подписи или хэша', req.seq)
       }
 
-      // 签名请求头场景
+      // Signed request header scenario
       if (this.hasSignatureHeaders(req)) {
-        this.addSceneHint(scenesMap, 'crypto-encryption', 'medium', '请求包含签名/加密相关 Header', req.seq)
+        this.addSceneHint(scenesMap, 'crypto-encryption', 'medium', 'Запрос содержит заголовок подписи или шифрования', req.seq)
       }
     }
 

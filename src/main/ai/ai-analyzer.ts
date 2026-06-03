@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import type { AnalysisReport, AssembledData, FilteredRequest, LLMProviderConfig, PromptTemplate, AiRequestLogData } from "@shared/types";
+import type { AnalysisReport, AppLocale, AssembledData, FilteredRequest, LLMProviderConfig, PromptTemplate, AiRequestLogData } from "@shared/types";
 import type {
   SessionsRepo,
   RequestsRepo,
@@ -28,24 +28,108 @@ const TOOL_RESULT_MAX_CHARS = 2000;
 /** 保留最近 N 条 assistant 消息的 tool_context（更早的会被剥离） */
 const KEEP_TOOL_CONTEXT_RECENT = 2;
 
-/** 内置 tool：查看请求详情 */
-const BUILTIN_TOOLS: MCPToolInfo[] = [
-  {
-    serverName: '_builtin',
-    name: 'get_request_detail',
-    description: '获取指定序号的HTTP请求的完整详细内容，包括所有请求头、请求体、响应头和响应体。当你需要查看被过滤掉的请求或需要查看完整的请求/响应内容时使用此工具。',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        seq: {
-          type: 'number',
-          description: '请求序号（从完整请求索引中获取）',
-        },
-      },
-      required: ['seq'],
-    },
+const ANALYZER_TEXT: Record<AppLocale, {
+  builtinToolDescription: string;
+  builtinToolSeqDescription: string;
+  manualSelection: (count: number) => string;
+  filtering: (count: number) => string;
+  filtered: (total: number, selected: number) => string;
+  filterInsufficient: (total: number) => string;
+  filterFailed: (total: number) => string;
+  requestNotFound: (seq: number) => string;
+  analyzeFailed: (message: string) => string;
+  requestHeading: (seq: number) => string;
+  requestHeaders: string;
+  requestBody: string;
+  responseHeaders: string;
+  responseBody: string;
+  relatedHooks: string;
+  compressSystem: string;
+  compressUser: (conversationText: string) => string;
+}> = {
+  zh: {
+    builtinToolDescription: "获取指定序号的HTTP请求的完整详细内容，包括所有请求头、请求体、响应头和响应体。当你需要查看被过滤掉的请求或需要查看完整的请求/响应内容时使用此工具。",
+    builtinToolSeqDescription: "请求序号（从完整请求索引中获取）",
+    manualSelection: (count) => `> 手动选择模式：分析 ${count} 条选中的请求。\n\n`,
+    filtering: (count) => `> 正在过滤：分析 ${count} 条请求的相关性...\n\n`,
+    filtered: (total, selected) => `> 过滤完成：从 ${total} 条中选出 ${selected} 条相关请求进行深度分析。\n\n`,
+    filterInsufficient: (total) => `> 过滤结果不足，使用全部 ${total} 条请求分析。\n\n`,
+    filterFailed: (total) => `> 预过滤失败，使用全部 ${total} 条请求分析。\n\n`,
+    requestNotFound: (seq) => `Error: 未找到序号为 ${seq} 的请求`,
+    analyzeFailed: (message) => `AI 分析失败（已重试）: ${message}`,
+    requestHeading: (seq) => `# 请求 #${seq}`,
+    requestHeaders: "## 请求头",
+    requestBody: "## 请求体",
+    responseHeaders: "## 响应头",
+    responseBody: "## 响应体",
+    relatedHooks: "## 关联 JS Hooks",
+    compressSystem: "你是一个对话摘要助手。将以下多轮对话压缩为一段简洁的摘要，保留所有关键信息：讨论过的请求序号、API端点、发现的问题、用户关注的重点。用中文输出。",
+    compressUser: (conversationText) => `请将以下对话压缩为摘要（保留关键技术细节，尤其是请求序号和具体发现）：\n\n${conversationText}`,
   },
-];
+  en: {
+    builtinToolDescription: "Get the complete details of an HTTP request by sequence number, including all request headers, request body, response headers, and response body. Use this tool when you need filtered requests or full request/response content.",
+    builtinToolSeqDescription: "Request sequence number from the complete request index",
+    manualSelection: (count) => `> Manual selection mode: analyzing ${count} selected requests.\n\n`,
+    filtering: (count) => `> Filtering: analyzing relevance for ${count} requests...\n\n`,
+    filtered: (total, selected) => `> Filtering complete: selected ${selected} relevant requests out of ${total} for deep analysis.\n\n`,
+    filterInsufficient: (total) => `> Filter result was insufficient, analyzing all ${total} requests.\n\n`,
+    filterFailed: (total) => `> Pre-filtering failed, analyzing all ${total} requests.\n\n`,
+    requestNotFound: (seq) => `Error: request with sequence ${seq} was not found`,
+    analyzeFailed: (message) => `AI analysis failed after retry: ${message}`,
+    requestHeading: (seq) => `# Request #${seq}`,
+    requestHeaders: "## Request headers",
+    requestBody: "## Request body",
+    responseHeaders: "## Response headers",
+    responseBody: "## Response body",
+    relatedHooks: "## Related JS Hooks",
+    compressSystem: "You are a conversation summary assistant. Compress the following multi-turn conversation into a concise summary while preserving all key information: request sequence numbers, API endpoints, discovered issues, and the user's focus. Output in English.",
+    compressUser: (conversationText) => `Compress this conversation into a summary, preserving key technical details, especially request sequence numbers and concrete findings:\n\n${conversationText}`,
+  },
+  ru: {
+    builtinToolDescription: "Получает полные детали HTTP-запроса по номеру: заголовки запроса, тело запроса, заголовки ответа и тело ответа. Используй этот инструмент, когда нужно посмотреть отфильтрованные запросы или полный контент запроса/ответа.",
+    builtinToolSeqDescription: "Номер запроса из полного индекса запросов",
+    manualSelection: (count) => `> Режим ручного выбора: анализируется ${count} выбранных запросов.\n\n`,
+    filtering: (count) => `> Фильтрация: анализ релевантности ${count} запросов...\n\n`,
+    filtered: (total, selected) => `> Фильтрация завершена: из ${total} запросов выбрано ${selected} релевантных для глубокого анализа.\n\n`,
+    filterInsufficient: (total) => `> Результат фильтрации недостаточен, анализируются все ${total} запросов.\n\n`,
+    filterFailed: (total) => `> Предварительная фильтрация не удалась, анализируются все ${total} запросов.\n\n`,
+    requestNotFound: (seq) => `Error: запрос с номером ${seq} не найден`,
+    analyzeFailed: (message) => `AI-анализ не удался после повтора: ${message}`,
+    requestHeading: (seq) => `# Запрос #${seq}`,
+    requestHeaders: "## Заголовки запроса",
+    requestBody: "## Тело запроса",
+    responseHeaders: "## Заголовки ответа",
+    responseBody: "## Тело ответа",
+    relatedHooks: "## Связанные JS Hooks",
+    compressSystem: "Ты помощник для сжатия истории диалога. Сожми многоходовую переписку в краткое резюме и сохрани все ключевые данные: номера запросов, API endpoint, найденные проблемы и фокус пользователя. Отвечай на русском языке.",
+    compressUser: (conversationText) => `Сожми этот диалог в резюме, сохранив ключевые технические детали, особенно номера запросов и конкретные находки:\n\n${conversationText}`,
+  },
+};
+
+function getAnalyzerText(locale: AppLocale) {
+  return ANALYZER_TEXT[locale] ?? ANALYZER_TEXT.zh;
+}
+
+function getBuiltinTools(locale: AppLocale): MCPToolInfo[] {
+  const text = getAnalyzerText(locale);
+  return [
+    {
+      serverName: "_builtin",
+      name: "get_request_detail",
+      description: text.builtinToolDescription,
+      inputSchema: {
+        type: "object",
+        properties: {
+          seq: {
+            type: "number",
+            description: text.builtinToolSeqDescription,
+          },
+        },
+        required: ["seq"],
+      },
+    },
+  ];
+}
 
 /**
  * AiAnalyzer — Orchestrates data assembly, prompt building, LLM calling,
@@ -105,8 +189,10 @@ export class AiAnalyzer {
     purpose?: string,
     template?: PromptTemplate,
     selectedSeqs?: number[],
+    locale: AppLocale = 'zh',
     signal?: AbortSignal,
   ): Promise<AnalysisReport> {
+    const analyzerText = getAnalyzerText(locale);
     // Get session info
     const session = this.sessionsRepo.findById(sessionId);
     if (!session) throw new Error(`Session ${sessionId} not found`);
@@ -140,7 +226,7 @@ export class AiAnalyzer {
 
     if (manualSelection) {
       analysisData = assembler.filterBySeqs(fullData, selectedSeqs);
-      onProgress?.(`> 手动选择模式：分析 ${analysisData.requests.length} 条选中的请求。\n\n`);
+      onProgress?.(analyzerText.manualSelection(analysisData.requests.length));
     } else {
       // Phase 1: 预过滤（可选）
       const shouldFilter =
@@ -149,7 +235,7 @@ export class AiAnalyzer {
 
       if (shouldFilter) {
         try {
-          onProgress?.(`> 正在过滤：分析 ${fullData.requests.length} 条请求的相关性...\n\n`);
+          onProgress?.(analyzerText.filtering(fullData.requests.length));
 
           allSummaries = assembler.extractSummaries(fullData);
           const promptBuilder = new PromptBuilder();
@@ -158,6 +244,7 @@ export class AiAnalyzer {
             fullData.sceneHints,
             purpose,
             template,
+            locale,
           );
 
           const phase1Config: LLMProviderConfig = { ...config, maxTokens: PHASE1_MAX_TOKENS };
@@ -179,13 +266,13 @@ export class AiAnalyzer {
 
           if (filteredSeqs && filteredSeqs.length >= PRE_FILTER_MIN_SELECTED) {
             analysisData = assembler.filterBySeqs(fullData, filteredSeqs);
-            onProgress?.(`> 过滤完成：从 ${fullData.requests.length} 条中选出 ${filteredSeqs.length} 条相关请求进行深度分析。\n\n`);
+            onProgress?.(analyzerText.filtered(fullData.requests.length, filteredSeqs.length));
           } else {
-            onProgress?.(`> 过滤结果不足，使用全部 ${fullData.requests.length} 条请求分析。\n\n`);
+            onProgress?.(analyzerText.filterInsufficient(fullData.requests.length));
             allSummaries = undefined; // 未过滤，不需要完整索引
           }
         } catch {
-          onProgress?.(`> 预过滤失败，使用全部 ${fullData.requests.length} 条请求分析。\n\n`);
+          onProgress?.(analyzerText.filterFailed(fullData.requests.length));
           allSummaries = undefined;
         }
       }
@@ -198,6 +285,7 @@ export class AiAnalyzer {
     const { system, user } = promptBuilder.build(
       analysisData, platformName, purpose, template,
       filteredApplied ? allSummaries : undefined,
+      locale,
     );
 
     // Call LLM with retry
@@ -210,7 +298,7 @@ export class AiAnalyzer {
     const requestMap = new Map(fullData.requests.map(r => [r.seq, r]));
 
     // 仅当 Phase 1 过滤生效（非手动选择）时才提供内置 tool
-    const builtinTools = (filteredApplied && !manualSelection) ? BUILTIN_TOOLS : [];
+    const builtinTools = (filteredApplied && !manualSelection) ? getBuiltinTools(locale) : [];
     const mcpTools = this.mcpManager?.hasConnections()
       ? this.mcpManager.listAllTools()
       : [];
@@ -222,8 +310,8 @@ export class AiAnalyzer {
       if (name === 'get_request_detail') {
         const seq = args.seq as number;
         const req = requestMap.get(seq);
-        if (!req) return `Error: 未找到序号为 ${seq} 的请求`;
-        return this.formatRequestDetail(req);
+        if (!req) return analyzerText.requestNotFound(seq);
+        return this.formatRequestDetail(req, locale);
       }
       if (mcpMgr) return mcpMgr.callTool(name, args);
       throw new Error(`Tool not found: ${name}`);
@@ -263,7 +351,7 @@ export class AiAnalyzer {
         if (signal?.aborted) throw err;
         if (attempt === 1)
           throw new Error(
-            `AI 分析失败（已重试）: ${(err as Error).message}`,
+            analyzerText.analyzeFailed((err as Error).message),
           );
       }
     }
@@ -310,25 +398,26 @@ export class AiAnalyzer {
   /**
    * 格式化单个请求的完整详情（内置 tool 返回值）
    */
-  private formatRequestDetail(req: FilteredRequest): string {
+  private formatRequestDetail(req: FilteredRequest, locale: AppLocale): string {
+    const analyzerText = getAnalyzerText(locale);
     const lines = [
-      `# 请求 #${req.seq}`,
+      analyzerText.requestHeading(req.seq),
       `${req.method} ${req.url} → ${req.status ?? 'pending'}`,
       '',
-      '## 请求头',
+      analyzerText.requestHeaders,
       JSON.stringify(req.headers, null, 2),
     ];
     if (req.body) {
-      lines.push('', '## 请求体', req.body);
+      lines.push('', analyzerText.requestBody, req.body);
     }
     if (req.responseHeaders) {
-      lines.push('', '## 响应头', JSON.stringify(req.responseHeaders, null, 2));
+      lines.push('', analyzerText.responseHeaders, JSON.stringify(req.responseHeaders, null, 2));
     }
     if (req.responseBody) {
-      lines.push('', '## 响应体', req.responseBody);
+      lines.push('', analyzerText.responseBody, req.responseBody);
     }
     if (req.hooks.length > 0) {
-      lines.push('', '## 关联 JS Hooks');
+      lines.push('', analyzerText.relatedHooks);
       for (const h of req.hooks) {
         lines.push(`[${h.hook_type}] ${h.function_name}: args=${h.arguments}${h.result ? ` result=${h.result}` : ''}`);
       }
@@ -343,7 +432,9 @@ export class AiAnalyzer {
     userMessage: string,
     onProgress?: (chunk: string) => void,
     reportId?: string,
+    locale: AppLocale = "zh",
   ): Promise<string> {
+    const analyzerText = getAnalyzerText(locale);
     // Build messages array: existing history + new user message
     const messages = [
       ...history,
@@ -352,7 +443,7 @@ export class AiAnalyzer {
 
     // Trim old messages if total context exceeds limit
     // Keep: messages[0] (system) + messages[1] (report) + most recent turns
-    await this.compressMessages(messages, MAX_CHAT_CONTEXT_CHARS, config, sessionId, reportId ?? null);
+    await this.compressMessages(messages, MAX_CHAT_CONTEXT_CHARS, config, sessionId, reportId ?? null, locale);
 
     const router = new LLMRouter(config, this.createLogCallback(sessionId, reportId ?? null, 'chat', config))
 
@@ -366,7 +457,7 @@ export class AiAnalyzer {
     const requestMap = new Map(fullData.requests.map(r => [r.seq, r]));
 
     // Collect available tools: builtin + MCP
-    const builtinTools = fullData.requests.length > 0 ? BUILTIN_TOOLS : [];
+    const builtinTools = fullData.requests.length > 0 ? getBuiltinTools(locale) : [];
     const mcpTools = this.mcpManager?.hasConnections()
       ? this.mcpManager.listAllTools()
       : [];
@@ -382,9 +473,9 @@ export class AiAnalyzer {
         const seq = args.seq as number;
         const req = requestMap.get(seq);
         if (!req) {
-          result = `Error: 未找到序号为 ${seq} 的请求`;
+          result = analyzerText.requestNotFound(seq);
         } else {
-          result = this.formatRequestDetail(req);
+          result = this.formatRequestDetail(req, locale);
         }
       } else if (mcpMgr) {
         result = await mcpMgr.callTool(name, args);
@@ -440,7 +531,9 @@ export class AiAnalyzer {
     config: LLMProviderConfig,
     sessionId: string,
     reportId: string | null,
+    locale: AppLocale,
   ): Promise<void> {
+    const analyzerText = getAnalyzerText(locale);
     const totalChars = () => messages.reduce((sum, m) => sum + m.content.length, 0);
 
     if (totalChars() <= maxChars) return;
@@ -480,11 +573,11 @@ export class AiAnalyzer {
     const summaryPrompt = [
       {
         role: 'system' as const,
-        content: '你是一个对话摘要助手。将以下多轮对话压缩为一段简洁的摘要，保留所有关键信息：讨论过的请求序号、API端点、发现的问题、用户关注的重点。用中文输出。',
+        content: analyzerText.compressSystem,
       },
       {
         role: 'user' as const,
-        content: `请将以下对话压缩为摘要（保留关键技术细节，尤其是请求序号和具体发现）：\n\n${conversationText}`,
+        content: analyzerText.compressUser(conversationText),
       },
     ];
 

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocale } from '../i18n'
 import styles from './VirtualTable.module.css'
 
 /* ---- Types ---- */
@@ -57,6 +58,7 @@ function FilterDropdown({ column, activeFilters, onChange, onClose, filterSearch
   filterSearch?: boolean
   anchorRef: React.RefObject<HTMLButtonElement | null>
 }) {
+  const { t } = useLocale()
   const [search, setSearch] = useState('')
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
@@ -100,7 +102,7 @@ function FilterDropdown({ column, activeFilters, onChange, onClose, filterSearch
     <div ref={ref} className={styles.filterDropdown} style={{ position: 'fixed', top: pos.top, left: pos.left }}>
       {filterSearch && (
         <div className={styles.filterSearch}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." autoFocus />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('common.search')} autoFocus />
         </div>
       )}
       {filtered.map(f => (
@@ -110,8 +112,8 @@ function FilterDropdown({ column, activeFilters, onChange, onClose, filterSearch
         </label>
       ))}
       <div className={styles.filterActions}>
-        <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }} onClick={() => onChange(new Set())}>Reset</button>
-        <button style={{ background: 'none', border: 'none', color: 'var(--color-info)', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }} onClick={onClose}>OK</button>
+        <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }} onClick={() => onChange(new Set())}>{t('common.reset')}</button>
+        <button style={{ background: 'none', border: 'none', color: 'var(--color-info)', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }} onClick={onClose}>{t('common.ok')}</button>
       </div>
     </div>,
     document.body
@@ -129,9 +131,11 @@ export function VirtualTable<T>({
   onRow,
   rowSelection,
   expandable,
-  emptyText = 'No data',
+  emptyText,
   onFilterDropdownOpenChange,
 }: VirtualTableProps<T>) {
+  const { t } = useLocale()
+  const resolvedEmptyText = emptyText ?? t('common.noData')
   const [sortState, setSortState] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
   const [filterState, setFilterState] = useState<Record<string, Set<string>>>({})
   const [openFilter, setOpenFilter] = useState<string | null>(null)
@@ -362,7 +366,7 @@ export function VirtualTable<T>({
         {showHeader && renderHeader()}
         <div className={styles.body} style={{ maxHeight: height }}>
           {sortedData.length === 0 ? (
-            <div className={styles.empty}>{emptyText}</div>
+            <div className={styles.empty}>{resolvedEmptyText}</div>
           ) : (
             sortedData.map((record, idx) => renderRow(record, idx))
           )}
@@ -389,7 +393,7 @@ export function VirtualTable<T>({
       {showHeader && renderHeader()}
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>
         {sortedData.length === 0 ? (
-          <div className={styles.empty}>{emptyText}</div>
+          <div className={styles.empty}>{resolvedEmptyText}</div>
         ) : (
           <div
             ref={scrollContainerRef}

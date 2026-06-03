@@ -64,7 +64,7 @@ describe('SceneDetector', () => {
     const hints = detector.detect(requests)
     const aiChatHint = hints.find(h => h.scene === 'ai-chat' && h.confidence === 'medium')
     expect(aiChatHint).toBeDefined()
-    expect(aiChatHint?.evidence).toContain('AI 典型字段')
+    expect(aiChatHint?.evidence).toContain('Типичные AI-поля')
   })
 
   it('应检测 OAuth 场景', () => {

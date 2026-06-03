@@ -70,7 +70,7 @@ export class Updater {
 
   /** Trigger an update check. Safe to call at any time. */
   checkForUpdates(): void {
-    // 开发模式下跳过，避免 electron-updater 输出 "Skip checkForUpdates" 警告
+    // В dev-режиме пропускаем проверку, чтобы electron-updater не писал лишнее предупреждение.
     if (!app.isPackaged) {
       this.sendStatus({ state: "not-available", info: { version: app.getVersion() } });
       return;
@@ -104,7 +104,7 @@ export class Updater {
       process.platform === "darwin" &&
       /code signature|did not satisfy designated requirement|not signed|代码对象根本未签名/i.test(message)
     ) {
-      return `${message}\n\n当前 macOS 更新包未通过代码签名校验。请从 GitHub Release 手动下载安装最新 DMG，或重新发布已签名/已公证的 macOS 安装包。`;
+      return `${message}\n\nТекущий macOS-пакет обновления не прошёл проверку подписи кода. Скачайте свежий DMG вручную из GitHub Release или опубликуйте заново подписанный и нотариально заверенный macOS-пакет.`;
     }
     return message;
   }

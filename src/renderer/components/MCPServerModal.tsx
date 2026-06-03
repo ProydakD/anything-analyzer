@@ -3,6 +3,7 @@ import { Modal, Button, Input, TextArea, Switch, Popconfirm, useToast } from '..
 import { IconPlus, IconDelete, IconSave, IconApi } from '../ui/Icons'
 import { v4 as uuidv4 } from 'uuid'
 import type { MCPServerConfig } from '@shared/types'
+import { useLocale } from '../i18n'
 
 interface Props {
   open: boolean
@@ -35,15 +36,16 @@ function configToJson(config: MCPServerConfig): string {
 /**
  * 获取左侧列表中的描述文本
  */
-function getServerDescription(server: MCPServerConfig): string {
+function getServerDescription(server: MCPServerConfig, fallbackUrl: string, fallbackCommand: string): string {
   if (server.transport === 'streamableHttp') {
-    return server.url || '未配置 URL'
+    return server.url || fallbackUrl
   }
-  return [server.command, ...server.args].filter(Boolean).join(' ') || '未配置命令'
+  return [server.command, ...server.args].filter(Boolean).join(' ') || fallbackCommand
 }
 
 export default function MCPServerModal({ open, onClose }: Props) {
   const toast = useToast()
+  const { t } = useLocale()
   const [servers, setServers] = useState<MCPServerConfig[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<MCPServerConfig | null>(null)
@@ -109,7 +111,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
         setTransportType('stdio')
       }
     } catch (e) {
-      setJsonError(`JSON 格式错误: ${(e as Error).message}`)
+      setJsonError(t('mcpModal.jsonError', { message: (e as Error).message }))
     }
   }
 
@@ -128,7 +130,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
   const handleSave = async () => {
     if (!editForm) return
     if (!editForm.name.trim()) {
-      toast.warning('请输入服务器名称')
+      toast.warning(t('mcpModal.nameRequired'))
       return
     }
 
@@ -136,7 +138,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
     try {
       parsed = JSON.parse(jsonText)
     } catch (e) {
-      toast.error(`JSON 格式错误: ${(e as Error).message}`)
+      toast.error(t('mcpModal.jsonError', { message: (e as Error).message }))
       return
     }
 
@@ -146,13 +148,13 @@ export default function MCPServerModal({ open, onClose }: Props) {
     if (transportType === 'streamableHttp') {
       const url = parsed.url
       if (typeof url !== 'string' || !url.trim()) {
-        toast.warning('请输入服务器 URL')
+        toast.warning(t('mcpModal.urlRequired'))
         return
       }
       try {
         new URL(url)
       } catch {
-        toast.warning('URL 格式无效')
+        toast.warning(t('mcpModal.urlInvalid'))
         return
       }
       serverConfig = {
@@ -164,7 +166,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
     } else {
       const command = parsed.command
       if (typeof command !== 'string' || !command.trim()) {
-        toast.warning('请输入启动命令')
+        toast.warning(t('mcpModal.commandRequired'))
         return
       }
       serverConfig = {
@@ -177,7 +179,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
     }
 
     await window.electronAPI.saveMCPServer(serverConfig)
-    toast.success('MCP 服务器已保存')
+    toast.success(t('mcpModal.saved'))
     setDirty(false)
     const list = await window.electronAPI.getMCPServers()
     setServers(list)
@@ -186,7 +188,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
   const handleDelete = async () => {
     if (!editForm) return
     await window.electronAPI.deleteMCPServer(editForm.id)
-    toast.success('MCP 服务器已删除')
+    toast.success(t('mcpModal.deleted'))
     setSelectedId(null)
     setEditForm(null)
     setDirty(false)
@@ -216,7 +218,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
 
   return (
     <Modal
-      title="MCP 服务器管理"
+      title={t('mcpModal.title')}
       open={open}
       onClose={onClose}
       width={800}
@@ -240,7 +242,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
               size="sm"
               onClick={handleCreate}
             >
-              添加服务器
+              {t('mcpModal.add')}
             </Button>
           </div>
           <div>
@@ -269,7 +271,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
                       whiteSpace: 'nowrap',
                       color: 'var(--text-primary)',
                     }}>
-                      {item.name || '未命名'}
+                      {item.name || t('mcpModal.unnamed')}
                     </span>
                   </div>
                   <span style={{
@@ -280,7 +282,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
                     whiteSpace: 'nowrap',
                     display: 'block',
                   }}>
-                    {getServerDescription(item)}
+                    {getServerDescription(item, t('mcpModal.unconfiguredUrl'), t('mcpModal.unconfiguredCommand'))}
                   </span>
                 </div>
               </div>
@@ -305,18 +307,18 @@ export default function MCPServerModal({ open, onClose }: Props) {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <div style={{ flex: 1 }}>
                   <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    名称
+                    {t('mcpModal.name')}
                   </span>
                   <Input
                     value={editForm.name}
                     onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="如：文件系统 / 远程搜索"
+                    placeholder={t('mcpModal.namePlaceholder')}
                     inputSize="sm"
                   />
                 </div>
                 <div style={{ paddingTop: 18 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>启用</span>
+                    <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>{t('mcpModal.enabled')}</span>
                     <Switch
                       checked={editForm.enabled}
                       onChange={handleEnabledChange}
@@ -328,7 +330,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
               {/* 传输类型选择 */}
               <div>
                 <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  传输类型
+                  {t('mcpModal.transport')}
                 </span>
                 <div style={{
                   display: 'flex',
@@ -338,8 +340,8 @@ export default function MCPServerModal({ open, onClose }: Props) {
                   width: 'fit-content',
                 }}>
                   {[
-                    { label: '本地命令 (stdio)', value: 'stdio' },
-                    { label: '远程服务 (HTTP)', value: 'streamableHttp' },
+                    { label: t('mcpModal.transportStdio'), value: 'stdio' },
+                    { label: t('mcpModal.transportHttp'), value: 'streamableHttp' },
                   ].map(opt => (
                     <button
                       key={opt.value}
@@ -365,7 +367,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
               {/* JSON 编辑器 */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  配置 (JSON)
+                  {t('mcpModal.configJson')}
                 </span>
                 <TextArea
                   value={jsonText}
@@ -392,9 +394,9 @@ export default function MCPServerModal({ open, onClose }: Props) {
 
               {/* 操作按钮 */}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 'auto' }}>
-                <Popconfirm title="确定删除该服务器？" onConfirm={handleDelete} okText="确定" cancelText="取消">
+                <Popconfirm title={t('mcpModal.confirmDelete')} onConfirm={handleDelete} okText={t('common.ok')} cancelText={t('common.cancel')}>
                   <Button size="sm" variant="danger" icon={<IconDelete size={13} />}>
-                    删除
+                    {t('common.delete')}
                   </Button>
                 </Popconfirm>
                 <Button
@@ -404,7 +406,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
                   onClick={handleSave}
                   disabled={!dirty || !!jsonError}
                 >
-                  保存
+                  {t('common.save')}
                 </Button>
               </div>
             </>
@@ -417,7 +419,7 @@ export default function MCPServerModal({ open, onClose }: Props) {
                 justifyContent: 'center',
               }}
             >
-              <span style={{ color: 'var(--text-secondary)' }}>选择或添加 MCP 服务器</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{t('mcpModal.selectOrCreate')}</span>
             </div>
           )}
         </div>

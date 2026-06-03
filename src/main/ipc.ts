@@ -1,6 +1,6 @@
 import { ipcMain, dialog, app, session, shell } from "electron";
 import { networkInterfaces } from "os";
-import type { LLMProviderConfig, MCPServerConfig, MCPServerSettings, MitmProxyConfig, ProxyConfig, PromptTemplate } from "@shared/types";
+import type { AppLocale, LLMProviderConfig, MCPServerConfig, MCPServerSettings, MitmProxyConfig, ProxyConfig, PromptTemplate } from "@shared/types";
 import type { SessionManager } from "./session/session-manager";
 import type { AiAnalyzer } from "./ai/ai-analyzer";
 import type { WindowManager } from "./window";
@@ -14,6 +14,7 @@ import { SystemProxy } from "./proxy/system-proxy";
 import { loadMitmProxyConfig, saveMitmProxyConfig } from "./proxy/mitm-proxy-config";
 import {
   loadTemplates,
+  localizeTemplates,
   saveTemplate,
   deleteTemplate,
   resetTemplate,
@@ -319,7 +320,7 @@ export function registerIpcHandlers(deps: {
 
   // ---- AI Analysis ----
 
-  ipcMain.handle("ai:analyze", async (_event, sessionId: string, purpose?: string, selectedSeqs?: number[]) => {
+  ipcMain.handle("ai:analyze", async (_event, sessionId: string, purpose?: string, selectedSeqs?: number[], locale?: AppLocale) => {
     const config = loadLLMConfig();
     if (!config) throw new Error("LLM provider not configured");
 
@@ -337,7 +338,7 @@ export function registerIpcHandlers(deps: {
     }
 
     // Resolve template: if purpose matches a template ID, load it
-    const template = purpose ? findTemplate(purpose) : findTemplate("auto");
+    const template = purpose ? findTemplate(purpose, locale) : findTemplate("auto", locale);
 
     // Cancel any existing analysis for this session
     analysisControllers.get(sessionId)?.abort();
@@ -345,7 +346,7 @@ export function registerIpcHandlers(deps: {
     analysisControllers.set(sessionId, controller);
 
     try {
-      return await aiAnalyzer.analyze(sessionId, config, onProgress, purpose, template ?? undefined, selectedSeqs, controller.signal);
+      return await aiAnalyzer.analyze(sessionId, config, onProgress, purpose, template ?? undefined, selectedSeqs, locale, controller.signal);
     } finally {
       analysisControllers.delete(sessionId);
     }
@@ -364,6 +365,7 @@ export function registerIpcHandlers(deps: {
       reportId: string,
       history: Array<{ role: string; content: string }>,
       userMessage: string,
+      locale?: AppLocale,
     ) => {
       const config = loadLLMConfig();
       if (!config) throw new Error("LLM provider not configured");
@@ -380,7 +382,7 @@ export function registerIpcHandlers(deps: {
       }
 
       try {
-        const reply = await aiAnalyzer.chat(sessionId, config, history, userMessage, onProgress, reportId);
+        const reply = await aiAnalyzer.chat(sessionId, config, history, userMessage, onProgress, reportId, locale);
 
         // Persist user message and AI reply to database
         if (reportId) {
@@ -465,8 +467,8 @@ export function registerIpcHandlers(deps: {
 
   // ---- Prompt Templates ----
 
-  ipcMain.handle("templates:list", async () => {
-    return loadTemplates();
+  ipcMain.handle("templates:list", async (_event, locale?: AppLocale) => {
+    return localizeTemplates(loadTemplates(), locale);
   });
 
   ipcMain.handle("templates:save", async (_event, template: PromptTemplate) => {

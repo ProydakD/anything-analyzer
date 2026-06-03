@@ -56,7 +56,7 @@ export const AiLogView: React.FC<AiLogViewProps> = ({ sessionId, sessionName, on
         </button>
         <div className={styles.toolbarSpacer} />
         {!isGlobal && sessionName && (
-          <span className={styles.sessionLabel}>Session: {sessionName}</span>
+          <span className={styles.sessionLabel}>{t('aiLog.session')}: {sessionName}</span>
         )}
         {isGlobal && (
           <span className={styles.globalLabel}>{t('aiLog.globalMode')}</span>

@@ -86,7 +86,7 @@ const InteractionLog: React.FC<InteractionLogProps> = ({ interactions }) => {
   const columns: VTColumn<InteractionEvent>[] = useMemo(() => [
     {
       key: 'timestamp',
-      title: 'Time',
+      title: t('interaction.time'),
       dataIndex: 'timestamp',
       width: 90,
       render: (val) => new Date(val as number).toLocaleTimeString(),
@@ -94,7 +94,7 @@ const InteractionLog: React.FC<InteractionLogProps> = ({ interactions }) => {
     },
     {
       key: 'type',
-      title: 'Type',
+      title: t('interaction.type'),
       dataIndex: 'type',
       width: 90,
       render: (val) => (

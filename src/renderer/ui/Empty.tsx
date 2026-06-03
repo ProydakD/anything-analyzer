@@ -1,4 +1,5 @@
 import React from 'react'
+import { useLocale } from '../i18n'
 import styles from './Empty.module.css'
 
 export interface EmptyProps {
@@ -10,12 +11,14 @@ export interface EmptyProps {
 }
 
 export const Empty: React.FC<EmptyProps> = ({
-  description = 'No data',
+  description,
   icon,
   children,
   className,
   style,
 }) => {
+  const { t } = useLocale()
+
   return (
     <div className={`${styles.empty} ${className ?? ''}`} style={style}>
       <div className={styles.icon}>
@@ -27,7 +30,7 @@ export const Empty: React.FC<EmptyProps> = ({
           </svg>
         )}
       </div>
-      <div className={styles.text}>{description}</div>
+      <div className={styles.text}>{description ?? t('common.noData')}</div>
       {children}
     </div>
   )

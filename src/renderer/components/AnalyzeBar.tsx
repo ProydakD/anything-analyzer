@@ -22,13 +22,13 @@ const AnalyzeBar: React.FC<AnalyzeBarProps> = ({
   selectedSeqCount,
   totalCount,
 }) => {
-  const { t } = useLocale()
+  const { locale, t } = useLocale()
   const [purposeId, setPurposeId] = useState('auto')
   const [templates, setTemplates] = useState<PromptTemplate[]>([])
 
   useEffect(() => {
-    window.electronAPI.getPromptTemplates().then(setTemplates).catch(() => {})
-  }, [])
+    window.electronAPI.getPromptTemplates(locale).then(setTemplates).catch(() => {})
+  }, [locale])
 
   const handleAnalyze = () => {
     if (purposeId === 'auto') {
@@ -56,7 +56,7 @@ const AnalyzeBar: React.FC<AnalyzeBarProps> = ({
         onChange={(e) => setPurposeId(e.target.value)}
         disabled={isAnalyzing}
       >
-        <option value="auto">▾ {t('capture.autoDetect') ?? '自动检测'}</option>
+        <option value="auto">▾ {t('capture.autoDetect') ?? 'Автоопределение'}</option>
         {templates.map((tpl) => (
           <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
         ))}
@@ -84,8 +84,8 @@ const AnalyzeBar: React.FC<AnalyzeBarProps> = ({
 
       <div className={styles.info}>
         {selectedSeqCount > 0
-          ? `${t('data.selected') ?? '已选'} ${selectedSeqCount} / ${t('data.total') ?? '共'} ${totalCount} ${t('data.requests')}`
-          : `${t('data.total') ?? '共'} ${totalCount} ${t('data.requests')}`
+          ? `${t('data.selected') ?? 'Выбрано'} ${selectedSeqCount} / ${t('data.total') ?? 'Всего'} ${totalCount} ${t('data.requests')}`
+          : `${t('data.total') ?? 'Всего'} ${totalCount} ${t('data.requests')}`
         }
       </div>
 

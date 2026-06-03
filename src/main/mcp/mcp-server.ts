@@ -20,7 +20,7 @@ import type {
   AnalysisReportsRepo,
   InteractionEventsRepo,
 } from "../db/repositories";
-import type { ChatMessage, InteractionType } from "@shared/types";
+import type { AppLocale, ChatMessage, InteractionType } from "@shared/types";
 import { loadLLMConfig } from "../ipc";
 import { ReplayEngine } from "../capture/replay-engine";
 
@@ -42,6 +42,44 @@ const mcpServers = new Map<string, McpServer>();
 // Per-session chat history for chat_followup tool
 const chatHistories = new Map<string, ChatMessage[]>();
 let currentDeps: MCPServerDeps | null = null;
+
+const LOCALE_SCHEMA = z.enum(["zh", "en", "ru"]).optional().default("zh");
+
+function buildFollowUpSystemPrompt(locale: AppLocale, contextBlock: string): string {
+  if (locale === "ru") {
+    return `Ты эксперт по анализу веб-протоколов. Отвечай на уточняющие вопросы по предыдущему отчёту и захваченным данным. Будь технически точным и отвечай на русском языке.
+
+Ты можешь использовать инструмент get_request_detail: передай номер запроса (seq), чтобы посмотреть полные детали любого запроса: заголовки и тело запроса, заголовки и тело ответа. Если пользователь спрашивает о конкретном запросе или нужны детали, вызывай этот инструмент самостоятельно.${contextBlock}`;
+  }
+
+  if (locale === "en") {
+    return `You are a web protocol analysis expert. Answer follow-up questions based on the previous analysis report and captured data. Be technically precise and respond in English.
+
+You can use the get_request_detail tool by passing a request sequence number (seq) to inspect the complete details of any request: request headers, request body, response headers, and response body. When the user asks about a specific request or more detail is needed, call this tool proactively.${contextBlock}`;
+  }
+
+  return `你是一位网站协议分析专家。基于之前的分析报告和捕获数据，回答用户的追问。保持技术精确，用中文回复。
+
+你可以使用 get_request_detail 工具，通过传入请求序号(seq)来查看任意请求的完整详情（请求头、请求体、响应头、响应体）。当用户追问某个具体请求或需要更多细节时，请主动调用此工具获取数据。${contextBlock}`;
+}
+
+function formatCapturedRequestSummary(locale: AppLocale, count: number): string {
+  if (locale === "ru") return `Захвачено запросов: ${count}`;
+  if (locale === "en") return `Captured ${count} requests`;
+  return `捕获到 ${count} 条请求`;
+}
+
+function formatRemainingRequestSummary(locale: AppLocale, count: number): string {
+  if (locale === "ru") return `... и ещё ${count} запросов`;
+  if (locale === "en") return `... and ${count} more`;
+  return `... 以及另外 ${count} 条请求`;
+}
+
+function formatHookSummaryHeading(locale: AppLocale): string {
+  if (locale === "ru") return "Обнаруженные hooks";
+  if (locale === "en") return "Detected hooks";
+  return "检测到的 hooks";
+}
 
 /**
  * Check if the body (single or batch JSON-RPC) contains an initialize request.
@@ -637,9 +675,10 @@ function registerTools(server: McpServer, deps: MCPServerDeps): void {
           .array(z.number())
           .optional()
           .describe("Optional: specific request sequence numbers to analyze"),
+        locale: LOCALE_SCHEMA.describe("Response language: zh, en, or ru"),
       }),
     },
-    async ({ sessionId, purpose, selectedSeqs }) => {
+    async ({ sessionId, purpose, selectedSeqs, locale }) => {
       const config = loadLLMConfig();
       if (!config)
         return text({
@@ -653,6 +692,7 @@ function registerTools(server: McpServer, deps: MCPServerDeps): void {
         purpose,
         undefined,
         selectedSeqs,
+        locale as AppLocale,
       );
       // Reset chat history so next chat_followup uses the new report
       chatHistories.delete(sessionId);
@@ -694,11 +734,13 @@ function registerTools(server: McpServer, deps: MCPServerDeps): void {
       inputSchema: z.object({
         sessionId: z.string().describe("Session ID"),
         message: z.string().describe("Follow-up question"),
+        locale: LOCALE_SCHEMA.describe("Response language: zh, en, or ru"),
       }),
     },
-    async ({ sessionId, message }) => {
+    async ({ sessionId, message, locale }) => {
       const config = loadLLMConfig();
       if (!config) return text({ error: "LLM not configured" });
+      const appLocale = locale as AppLocale;
 
       // Get or initialize chat history for this session
       if (!chatHistories.has(sessionId)) {
@@ -716,16 +758,16 @@ function registerTools(server: McpServer, deps: MCPServerDeps): void {
         }).join('\n');
 
         const hookSummary = hooks.length > 0
-          ? '\n\nDetected hooks:\n' + hooks.slice(0, 20).map((h) =>
+          ? `\n\n${formatHookSummaryHeading(appLocale)}:\n` + hooks.slice(0, 20).map((h) =>
               `[${h.hook_type}] ${h.function_name}`
             ).join('\n')
           : '';
 
         const contextBlock = reqSummary
-          ? `\n\n<captured_data_summary>\nCaptured ${requests.length} requests:\n${reqSummary}${requests.length > 50 ? `\n... and ${requests.length - 50} more` : ''}${hookSummary}\n</captured_data_summary>`
+          ? `\n\n<captured_data_summary>\n${formatCapturedRequestSummary(appLocale, requests.length)}:\n${reqSummary}${requests.length > 50 ? `\n${formatRemainingRequestSummary(appLocale, requests.length - 50)}` : ''}${hookSummary}\n</captured_data_summary>`
           : '';
 
-        const systemContent = `你是一位网站协议分析专家。基于之前的分析报告和捕获数据，回答用户的追问。保持技术精确，用中文回复。\n\n你可以使用 get_request_detail 工具，通过传入请求序号(seq)来查看任意请求的完整详情（请求头、请求体、响应头、响应体）。当用户追问某个具体请求或需要更多细节时，请主动调用此工具获取数据。${contextBlock}`;
+        const systemContent = buildFollowUpSystemPrompt(appLocale, contextBlock);
 
         const initialHistory: ChatMessage[] = [
           { role: "system" as const, content: systemContent },
@@ -737,7 +779,7 @@ function registerTools(server: McpServer, deps: MCPServerDeps): void {
       }
 
       const history = chatHistories.get(sessionId)!;
-      const reply = await aiAnalyzer.chat(sessionId, config, history, message);
+      const reply = await aiAnalyzer.chat(sessionId, config, history, message, undefined, undefined, appLocale);
       // Update history
       history.push({ role: "user" as const, content: message });
       history.push({ role: "assistant" as const, content: reply });

@@ -93,7 +93,7 @@ describe("LLMRouter", () => {
 
       controller.abort();
 
-      await expect(request).rejects.toThrow("LLM 请求已取消");
+      await expect(request).rejects.toThrow("LLM-запрос отменён");
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -113,7 +113,7 @@ describe("LLMRouter", () => {
       const [, options] = fetchSpy.mock.calls[0];
       controller.abort();
       expect(options.signal.aborted).toBe(true);
-      await expect(request).rejects.toThrow("LLM 请求已取消");
+      await expect(request).rejects.toThrow("LLM-запрос отменён");
     });
 
     it("should connect abort signal to tool-enabled LLM requests", async () => {
@@ -139,7 +139,7 @@ describe("LLMRouter", () => {
       const [, options] = fetchSpy.mock.calls[0];
       controller.abort();
       expect(options.signal.aborted).toBe(true);
-      await expect(request).rejects.toThrow("LLM 请求已取消");
+      await expect(request).rejects.toThrow("LLM-запрос отменён");
     });
 
     it("should route minimax to Anthropic messages endpoint", async () => {
@@ -228,7 +228,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "hello" }]),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 text content 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует текстовое поле content");
     });
 
     it("should reject Anthropic-compatible responses with non-string text content", async () => {
@@ -249,7 +249,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "hello" }]),
-      ).rejects.toThrow("LLM 响应格式异常: text content 必须是字符串");
+      ).rejects.toThrow("Некорректный формат ответа LLM: текстовое поле content должно быть строкой");
     });
 
     it("should route to completions endpoint when apiType is undefined", async () => {
@@ -300,7 +300,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "test" }]),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 choices 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует поле choices");
     });
 
     it("should reject non-object OpenAI completion JSON with a clear format error", async () => {
@@ -310,7 +310,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "test" }]),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 choices 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует поле choices");
     });
 
     it("should reject OpenAI completion choices without message content", async () => {
@@ -324,7 +324,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "test" }]),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 message.content 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует поле message.content");
     });
 
     it('should route to responses endpoint when apiType is "responses"', async () => {
@@ -445,7 +445,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "test" }]),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 output 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует поле output");
     });
 
     it("should reject Responses API results without output text", async () => {
@@ -461,7 +461,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "test" }]),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 output_text 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует поле output_text");
     });
 
     it("should reject incomplete Responses API results", async () => {
@@ -752,7 +752,7 @@ describe("LLMRouter", () => {
           [{ name: "lookup", description: "Lookup", inputSchema: { type: "object" } }],
           async () => "unused",
         ),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 message 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует поле message");
     });
 
     it("should reject OpenAI tool calls when tool_calls is not an array", async () => {
@@ -1153,7 +1153,7 @@ describe("LLMRouter", () => {
           [{ name: "lookup", description: "Lookup", inputSchema: { type: "object" } }],
           async () => "tool result",
         ),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 text content 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует текстовое поле content");
     });
   });
 
@@ -1295,7 +1295,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "test" }], () => {}),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 output_text 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует поле output_text");
     });
 
     it("should reject malformed Responses API stream JSON", async () => {
@@ -1386,7 +1386,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "test" }], () => {}),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 message.content 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует поле message.content");
     });
 
     it("should reject malformed OpenAI chat stream JSON", async () => {
@@ -1489,7 +1489,7 @@ describe("LLMRouter", () => {
 
       await expect(
         router.complete([{ role: "user", content: "test" }], () => {}),
-      ).rejects.toThrow("LLM 响应格式异常: 缺少 text content 字段");
+      ).rejects.toThrow("Некорректный формат ответа LLM: отсутствует текстовое поле content");
     });
 
     it("should reject malformed Anthropic stream JSON", async () => {

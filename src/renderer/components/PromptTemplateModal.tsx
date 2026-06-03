@@ -3,6 +3,7 @@ import { Modal, Button, Input, TextArea, Tag, Popconfirm, useToast } from '../ui
 import { IconPlus, IconUndo, IconDelete, IconSave } from '../ui/Icons'
 import { v4 as uuidv4 } from 'uuid'
 import type { PromptTemplate } from '@shared/types'
+import { useLocale } from '../i18n'
 
 interface Props {
   open: boolean
@@ -11,20 +12,21 @@ interface Props {
 
 export default function PromptTemplateModal({ open, onClose }: Props) {
   const toast = useToast()
+  const { locale, t } = useLocale()
   const [templates, setTemplates] = useState<PromptTemplate[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<PromptTemplate | null>(null)
   const [dirty, setDirty] = useState(false)
 
   const loadAll = useCallback(async () => {
-    const list = await window.electronAPI.getPromptTemplates()
+    const list = await window.electronAPI.getPromptTemplates(locale)
     setTemplates(list)
     // Auto-select first if nothing selected
     if (!selectedId && list.length > 0) {
       setSelectedId(list[0].id)
       setEditForm({ ...list[0] })
     }
-  }, [selectedId])
+  }, [selectedId, locale])
 
   useEffect(() => {
     if (open) loadAll()
@@ -47,7 +49,7 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
   const handleSave = async () => {
     if (!editForm) return
     await window.electronAPI.savePromptTemplate(editForm)
-    toast.success('模板已保存')
+    toast.success(t('promptTemplates.saved'))
     setDirty(false)
     await loadAll()
   }
@@ -55,8 +57,8 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
   const handleReset = async () => {
     if (!editForm || !editForm.isBuiltin) return
     await window.electronAPI.resetPromptTemplate(editForm.id)
-    toast.success('已恢复默认')
-    const list = await window.electronAPI.getPromptTemplates()
+    toast.success(t('promptTemplates.reset'))
+    const list = await window.electronAPI.getPromptTemplates(locale)
     setTemplates(list)
     const restored = list.find((t) => t.id === editForm.id)
     if (restored) {
@@ -68,11 +70,11 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
   const handleDelete = async () => {
     if (!editForm || editForm.isBuiltin) return
     await window.electronAPI.deletePromptTemplate(editForm.id)
-    toast.success('模板已删除')
+    toast.success(t('promptTemplates.deleted'))
     setSelectedId(null)
     setEditForm(null)
     setDirty(false)
-    const list = await window.electronAPI.getPromptTemplates()
+    const list = await window.electronAPI.getPromptTemplates(locale)
     setTemplates(list)
     if (list.length > 0) {
       setSelectedId(list[0].id)
@@ -83,9 +85,9 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
   const handleCreate = () => {
     const newTemplate: PromptTemplate = {
       id: uuidv4(),
-      name: '新模板',
+      name: t('promptTemplates.newName'),
       description: '',
-      systemPrompt: '你是一位网站协议分析专家。你的任务是分析用户在网站上的操作过程中产生的HTTP请求、JS调用和存储变化，识别其业务场景，并生成结构化的协议分析报告。Be precise and technical. Output in Chinese (Simplified).',
+      systemPrompt: t('promptTemplates.defaultSystemPrompt'),
       requirements: '',
       isBuiltin: false,
       isModified: false,
@@ -97,7 +99,7 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
 
   return (
     <Modal
-      title="提示词模板管理"
+      title={t('promptTemplates.title')}
       open={open}
       onClose={onClose}
       width={800}
@@ -119,7 +121,7 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
               size="sm"
               onClick={handleCreate}
             >
-              新建模板
+              {t('promptTemplates.add')}
             </Button>
           </div>
           <div>
@@ -147,10 +149,10 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
                       {item.name}
                     </span>
                     {item.isBuiltin && (
-                      <Tag style={{ fontSize: 'var(--font-size-2xs)', lineHeight: '16px', padding: '0 4px' }}>内置</Tag>
+                      <Tag style={{ fontSize: 'var(--font-size-2xs)', lineHeight: '16px', padding: '0 4px' }}>{t('promptTemplates.builtin')}</Tag>
                     )}
                     {item.isModified && (
-                      <Tag color="orange" style={{ fontSize: 'var(--font-size-2xs)', lineHeight: '16px', padding: '0 4px' }}>已改</Tag>
+                      <Tag color="orange" style={{ fontSize: 'var(--font-size-2xs)', lineHeight: '16px', padding: '0 4px' }}>{t('promptTemplates.modified')}</Tag>
                     )}
                   </div>
                   <span style={{
@@ -176,7 +178,7 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
                   <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    名称
+                    {t('promptTemplates.name')}
                   </span>
                   <Input
                     value={editForm.name}
@@ -187,7 +189,7 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
                 </div>
                 <div style={{ flex: 2 }}>
                   <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    描述
+                    {t('promptTemplates.description')}
                   </span>
                   <Input
                     value={editForm.description}
@@ -199,7 +201,7 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
 
               <div>
                 <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  System Prompt
+                  {t('promptTemplates.systemPrompt')}
                 </span>
                 <TextArea
                   value={editForm.systemPrompt}
@@ -211,7 +213,7 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
 
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  分析要求
+                  {t('promptTemplates.requirements')}
                 </span>
                 <TextArea
                   value={editForm.requirements}
@@ -222,13 +224,13 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
 
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 {editForm.isBuiltin && editForm.isModified && (
-                  <Popconfirm title="确定恢复默认？" onConfirm={handleReset} okText="确定" cancelText="取消">
-                    <Button size="sm" icon={<IconUndo size={13} />}>恢复默认</Button>
+                  <Popconfirm title={t('promptTemplates.confirmReset')} onConfirm={handleReset} okText={t('common.ok')} cancelText={t('common.cancel')}>
+                    <Button size="sm" icon={<IconUndo size={13} />}>{t('common.reset')}</Button>
                   </Popconfirm>
                 )}
                 {!editForm.isBuiltin && (
-                  <Popconfirm title="确定删除该模板？" onConfirm={handleDelete} okText="确定" cancelText="取消">
-                    <Button size="sm" variant="danger" icon={<IconDelete size={13} />}>删除</Button>
+                  <Popconfirm title={t('promptTemplates.confirmDelete')} onConfirm={handleDelete} okText={t('common.ok')} cancelText={t('common.cancel')}>
+                    <Button size="sm" variant="danger" icon={<IconDelete size={13} />}>{t('common.delete')}</Button>
                   </Popconfirm>
                 )}
                 <Button
@@ -238,13 +240,13 @@ export default function PromptTemplateModal({ open, onClose }: Props) {
                   onClick={handleSave}
                   disabled={!dirty}
                 >
-                  保存
+                  {t('common.save')}
                 </Button>
               </div>
             </>
           ) : (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>选择或新建模板</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{t('promptTemplates.selectOrCreate')}</span>
             </div>
           )}
         </div>

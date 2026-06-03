@@ -9,9 +9,9 @@ interface AiLogDetailProps {
 
 type DetailTab = 'request' | 'response' | 'headers' | 'meta'
 
-function formatTokenCount(prompt: number, completion: number): string {
+function formatTokenCount(prompt: number, completion: number, tokenLabel: string): string {
   const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
-  return `${fmt(prompt)} + ${fmt(completion)} tokens`
+  return `${fmt(prompt)} + ${fmt(completion)} ${tokenLabel}`
 }
 
 function formatDuration(ms: number | null): string {
@@ -53,7 +53,7 @@ export const AiLogDetail: React.FC<AiLogDetailProps> = ({ logId }) => {
   }, [logId])
 
   if (!detail) {
-    return <div className={styles.detailEmpty}>← Select a log entry</div>
+    return <div className={styles.detailEmpty}>{t('aiLog.selectEntry')}</div>
   }
 
   const statusText = detail.status_code
@@ -117,7 +117,7 @@ export const AiLogDetail: React.FC<AiLogDetailProps> = ({ logId }) => {
         <span>{detail.request_method} {urlPath}</span>
         <span className={detail.error ? styles.statusError : styles.statusOk}>{statusText}</span>
         <span>{formatDuration(detail.duration_ms)}</span>
-        <span>{formatTokenCount(detail.prompt_tokens, detail.completion_tokens)}</span>
+        <span>{formatTokenCount(detail.prompt_tokens, detail.completion_tokens, t('aiLog.tokens'))}</span>
       </div>
 
       {/* Error banner */}
@@ -131,7 +131,7 @@ export const AiLogDetail: React.FC<AiLogDetailProps> = ({ logId }) => {
           <pre className={styles.jsonBlock}>{tryFormatJson(detail.request_body)}</pre>
         )}
         {tab === 'response' && (
-          <pre className={styles.jsonBlock}>{detail.response_body ? tryFormatJson(detail.response_body) : '(empty)'}</pre>
+          <pre className={styles.jsonBlock}>{detail.response_body ? tryFormatJson(detail.response_body) : t('common.empty')}</pre>
         )}
         {tab === 'headers' && (
           <div className={styles.headersBlock}>
@@ -156,14 +156,14 @@ export const AiLogDetail: React.FC<AiLogDetailProps> = ({ logId }) => {
         {tab === 'meta' && (
           <table className={styles.metaTable}>
             <tbody>
-              <tr><td>Provider</td><td>{detail.provider}</td></tr>
-              <tr><td>Model</td><td>{detail.model}</td></tr>
-              <tr><td>Type</td><td>{detail.type}</td></tr>
-              <tr><td>Session ID</td><td>{detail.session_id ?? '--'}</td></tr>
-              <tr><td>Report ID</td><td>{detail.report_id ?? '--'}</td></tr>
-              <tr><td>Prompt Tokens</td><td>{detail.prompt_tokens}</td></tr>
-              <tr><td>Completion Tokens</td><td>{detail.completion_tokens}</td></tr>
-              <tr><td>Created</td><td>{new Date(detail.created_at).toLocaleString()}</td></tr>
+              <tr><td>{t('aiLog.provider')}</td><td>{detail.provider}</td></tr>
+              <tr><td>{t('aiLog.model')}</td><td>{detail.model}</td></tr>
+              <tr><td>{t('aiLog.type')}</td><td>{detail.type}</td></tr>
+              <tr><td>{t('aiLog.sessionId')}</td><td>{detail.session_id ?? '--'}</td></tr>
+              <tr><td>{t('aiLog.reportId')}</td><td>{detail.report_id ?? '--'}</td></tr>
+              <tr><td>{t('aiLog.promptTokens')}</td><td>{detail.prompt_tokens}</td></tr>
+              <tr><td>{t('aiLog.completionTokens')}</td><td>{detail.completion_tokens}</td></tr>
+              <tr><td>{t('aiLog.created')}</td><td>{new Date(detail.created_at).toLocaleString()}</td></tr>
             </tbody>
           </table>
         )}

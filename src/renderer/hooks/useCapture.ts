@@ -6,6 +6,7 @@ import type {
   AnalysisReport,
   ChatMessage,
   InteractionEvent,
+  AppLocale,
 } from "@shared/types";
 import { IPC_CHANNELS } from "@shared/types";
 
@@ -29,7 +30,12 @@ interface UseCaptureReturn extends UseCaptureState {
   clearData: () => void;
   clearCaptureData: (sessionId: string) => Promise<void>;
   selectRequest: (request: CapturedRequest | null) => void;
-  startAnalysis: (sessionId: string, purpose?: string, selectedSeqs?: number[]) => Promise<void>;
+  startAnalysis: (
+    sessionId: string,
+    purpose?: string,
+    selectedSeqs?: number[],
+    locale?: AppLocale,
+  ) => Promise<void>;
   cancelAnalysis: (sessionId: string) => Promise<void>;
   sendFollowUp: (sessionId: string, message: string) => Promise<void>;
 }
@@ -49,14 +55,52 @@ const INITIAL_STATE: UseCaptureState = {
   chatError: null,
 };
 
-export function useCapture(sessionId: string | null): UseCaptureReturn {
+function buildFollowUpSystemPrompt(
+  locale: AppLocale,
+  contextBlock: string,
+): string {
+  if (locale === 'ru') {
+    return `Ты эксперт по анализу веб-протоколов. Отвечай на уточняющие вопросы по предыдущему отчёту и захваченным данным. Будь технически точным и отвечай на русском языке.
+
+Ты можешь использовать инструмент get_request_detail: передай номер запроса (seq), чтобы посмотреть полные детали любого запроса: заголовки и тело запроса, заголовки и тело ответа. Если пользователь спрашивает о конкретном запросе или нужны детали, вызывай этот инструмент самостоятельно.${contextBlock}`;
+  }
+
+  if (locale === 'en') {
+    return `You are a web protocol analysis expert. Answer follow-up questions based on the previous analysis report and captured data. Be technically precise and respond in English.
+
+You can use the get_request_detail tool by passing a request sequence number (seq) to inspect the complete details of any request: request headers, request body, response headers, and response body. When the user asks about a specific request or more detail is needed, call this tool proactively.${contextBlock}`;
+  }
+
+  return `你是一位网站协议分析专家。基于之前的分析报告和捕获数据，回答用户的追问。保持技术精确，用中文回复。
+
+你可以使用 get_request_detail 工具，通过传入请求序号(seq)来查看任意请求的完整详情（请求头、请求体、响应头、响应体）。当用户追问某个具体请求或需要更多细节时，请主动调用此工具获取数据。${contextBlock}`;
+}
+
+function formatCapturedRequestSummary(locale: AppLocale, count: number): string {
+  if (locale === "ru") return `Захвачено запросов: ${count}`;
+  if (locale === "en") return `Captured ${count} requests`;
+  return `捕获到 ${count} 条请求`;
+}
+
+function formatRemainingRequestSummary(locale: AppLocale, count: number): string {
+  if (locale === "ru") return `... и ещё ${count} запросов`;
+  if (locale === "en") return `... and ${count} more`;
+  return `... 以及另外 ${count} 条请求`;
+}
+
+export function useCapture(sessionId: string | null, appLocale: AppLocale = 'zh'): UseCaptureReturn {
   const [state, setState] = useState<UseCaptureState>(INITIAL_STATE);
   const sessionIdRef = useRef(sessionId);
+  const localeRef = useRef<AppLocale>(appLocale);
 
   // Keep ref in sync for use in callbacks
   useEffect(() => {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
+
+  useEffect(() => {
+    localeRef.current = appLocale;
+  }, [appLocale]);
 
   // Clear all data
   const clearData = useCallback(() => {
@@ -111,7 +155,7 @@ export function useCapture(sessionId: string | null): UseCaptureReturn {
             ? `\n\n<captured_data_summary>\nCaptured ${requests.length} requests:\n${reqSummary}${requests.length > 50 ? `\n... and ${requests.length - 50} more` : ''}${hookSummary}\n</captured_data_summary>`
             : '';
 
-          const systemContent = `你是一位网站协议分析专家。基于之前的分析报告和捕获数据，回答用户的追问。保持技术精确，用中文回复。\n\n你可以使用 get_request_detail 工具，通过传入请求序号(seq)来查看任意请求的完整详情（请求头、请求体、响应头、响应体）。当用户追问某个具体请求或需要更多细节时，请主动调用此工具获取数据。${contextBlock}`;
+          const systemContent = buildFollowUpSystemPrompt(localeRef.current, contextBlock);
 
           chatHistory = [
             { role: 'system' as const, content: systemContent },
@@ -142,7 +186,7 @@ export function useCapture(sessionId: string | null): UseCaptureReturn {
   }, []);
 
   // Start AI analysis for a session
-  const startAnalysis = useCallback(async (sid: string, purpose?: string, selectedSeqs?: number[]) => {
+  const startAnalysis = useCallback(async (sid: string, purpose?: string, selectedSeqs?: number[], locale?: AppLocale) => {
     setState((prev) => ({
       ...prev,
       isAnalyzing: true,
@@ -151,7 +195,8 @@ export function useCapture(sessionId: string | null): UseCaptureReturn {
     }));
 
     try {
-      const report = await window.electronAPI.startAnalysis(sid, purpose, selectedSeqs);
+      const analysisLocale = locale ?? localeRef.current;
+      const report = await window.electronAPI.startAnalysis(sid, purpose, selectedSeqs, analysisLocale);
 
       // Only update if session hasn't changed
       if (sessionIdRef.current === sid) {
@@ -166,18 +211,16 @@ export function useCapture(sessionId: string | null): UseCaptureReturn {
           }).join('\n')
 
           const hookSummary = prev.hooks.length > 0
-            ? '\n\nDetected hooks:\n' + prev.hooks.slice(0, 20).map(h =>
+            ? `\n\n${analysisLocale === "ru" ? "Обнаруженные hooks" : analysisLocale === "en" ? "Detected hooks" : "检测到的 hooks"}:\n` + prev.hooks.slice(0, 20).map(h =>
                 `[${h.hook_type}] ${h.function_name}`
               ).join('\n')
             : ''
 
           const contextBlock = reqSummary
-            ? `\n\n<captured_data_summary>\nCaptured ${prev.requests.length} requests:\n${reqSummary}${prev.requests.length > 50 ? `\n... and ${prev.requests.length - 50} more` : ''}${hookSummary}\n</captured_data_summary>`
+            ? `\n\n<captured_data_summary>\n${formatCapturedRequestSummary(analysisLocale, prev.requests.length)}:\n${reqSummary}${prev.requests.length > 50 ? `\n${formatRemainingRequestSummary(analysisLocale, prev.requests.length - 50)}` : ''}${hookSummary}\n</captured_data_summary>`
             : ''
 
-          systemContent = `你是一位网站协议分析专家。基于之前的分析报告和捕获数据，回答用户的追问。保持技术精确，用中文回复。
-
-你可以使用 get_request_detail 工具，通过传入请求序号(seq)来查看任意请求的完整详情（请求头、请求体、响应头、响应体）。当用户追问某个具体请求或需要更多细节时，请主动调用此工具获取数据。${contextBlock}`
+          systemContent = buildFollowUpSystemPrompt(analysisLocale, contextBlock)
 
           const chatHistory: ChatMessage[] = [
             { role: 'system' as const, content: systemContent },
@@ -248,7 +291,7 @@ export function useCapture(sessionId: string | null): UseCaptureReturn {
     });
 
     try {
-      const reply = await window.electronAPI.sendFollowUp(sid, currentReportId, chatHistoryRef.current, message);
+      const reply = await window.electronAPI.sendFollowUp(sid, currentReportId, chatHistoryRef.current, message, localeRef.current);
 
       if (sessionIdRef.current === sid) {
         setState((prev) => ({

@@ -1,7 +1,7 @@
 {
   "name": "anything-analyzer",
   "version": "3.6.50",
-  "description": "Universal web protocol analyzer with embedded browser and AI-powered analysis",
+  "description": "Универсальный анализатор веб-протоколов со встроенным браузером и AI-анализом",
   "packageManager": "pnpm@10.24.0",
   "main": "./out/main/index.js",
   "scripts": {

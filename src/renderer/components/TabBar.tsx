@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { IconPlus, IconClose, IconLoading } from '../ui/Icons'
 import type { BrowserTab } from '@shared/types'
+import { useLocale } from '../i18n'
 import styles from './TabBar.module.css'
 
 interface TabBarProps {
@@ -11,16 +12,17 @@ interface TabBarProps {
   onCreate: () => void
 }
 
-/** Extracts a display label for a tab: title > hostname > 'New Tab' */
-function getTabLabel(tab: BrowserTab): string {
+/** Extracts a display label for a tab: title > hostname > localized fallback. */
+function getTabLabel(tab: BrowserTab, fallbackLabel: string): string {
   if (tab.title && tab.title !== 'New Tab') return tab.title
   if (tab.url) {
-    try { return new URL(tab.url).hostname || 'New Tab' } catch { /* invalid URL */ }
+    try { return new URL(tab.url).hostname || fallbackLabel } catch { /* invalid URL */ }
   }
-  return 'New Tab'
+  return fallbackLabel
 }
 
 const TabBar: React.FC<TabBarProps> = ({ tabs, activeTabId, onActivate, onClose, onCreate }) => {
+  const { t } = useLocale()
   const [hoveredTabId, setHoveredTabId] = useState<string | null>(null)
 
   return (
@@ -29,7 +31,7 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, activeTabId, onActivate, onClose,
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId
           const isHovered = tab.id === hoveredTabId
-          const label = getTabLabel(tab)
+          const label = getTabLabel(tab, t('browser.newTab'))
 
           return (
             <div
@@ -60,7 +62,7 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, activeTabId, onActivate, onClose,
         })}
       </div>
 
-      <div className={styles.newTabBtn} onClick={onCreate} title="New Tab">
+      <div className={styles.newTabBtn} onClick={onCreate} title={t('browser.newTab')}>
         <IconPlus size={12} />
       </div>
     </div>

@@ -73,7 +73,7 @@ function readResponsesOutputText(data: {
         : "";
 
   if (content.length === 0) {
-    throw new Error(`LLM 响应格式异常: 缺少 output_text 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+    throw new Error(`Некорректный формат ответа LLM: отсутствует поле output_text — ${JSON.stringify(data).slice(0, 200)}`);
   }
 
   return content;
@@ -81,7 +81,10 @@ function readResponsesOutputText(data: {
 
 function requireLLMContent(content: string, fieldName: string): string {
   if (content.length === 0) {
-    throw new Error(`LLM 响应格式异常: 缺少 ${fieldName} 字段`);
+    if (fieldName === "text content") {
+      throw new Error("Некорректный формат ответа LLM: отсутствует текстовое поле content");
+    }
+    throw new Error(`Некорректный формат ответа LLM: отсутствует поле ${fieldName}`);
   }
   return content;
 }
@@ -124,12 +127,12 @@ function readAnthropicTextContent(data: {
 }): string {
   const textBlocks = data.content.filter((block) => block.type === "text");
   if (textBlocks.some((block) => typeof block.text !== "string")) {
-    throw new Error(`LLM 响应格式异常: text content 必须是字符串 — ${JSON.stringify(data).slice(0, 200)}`);
+    throw new Error(`Некорректный формат ответа LLM: текстовое поле content должно быть строкой — ${JSON.stringify(data).slice(0, 200)}`);
   }
 
   const content = textBlocks.map((block) => block.text as string).join("");
   if (content.length === 0) {
-    throw new Error(`LLM 响应格式异常: 缺少 text content 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+    throw new Error(`Некорректный формат ответа LLM: отсутствует текстовое поле content — ${JSON.stringify(data).slice(0, 200)}`);
   }
 
   return content;
@@ -211,7 +214,7 @@ export class LLMRouter {
     } catch {
       // Likely HTML or plain text — show a truncated preview
       const preview = text.slice(0, 200).replace(/\n/g, ' ');
-      throw new Error(`LLM 返回了非 JSON 响应 (${response.status}): ${preview}`);
+      throw new Error(`LLM вернула не-JSON ответ (${response.status}): ${preview}`);
     }
 
     // Anthropic error format: { type: "error", error: { type, message } }
@@ -220,7 +223,7 @@ export class LLMRouter {
       : {};
     if (obj.type === 'error' && typeof obj.error === 'object' && obj.error !== null) {
       const err = obj.error as Record<string, unknown>;
-      throw new Error(`LLM API 错误: ${err.type ?? 'unknown'} — ${err.message ?? JSON.stringify(err)}`);
+      throw new Error(`Ошибка LLM API: ${err.type ?? 'unknown'} — ${err.message ?? JSON.stringify(err)}`);
     }
 
     // Responses API failed payloads need endpoint-specific handling.
@@ -231,7 +234,7 @@ export class LLMRouter {
     // OpenAI error format: { error: { message, type, code } }
     if (typeof obj.error === 'object' && obj.error !== null && !obj.type) {
       const err = obj.error as Record<string, unknown>;
-      throw new Error(`LLM API 错误: ${err.message ?? JSON.stringify(err)}`);
+      throw new Error(`Ошибка LLM API: ${err.message ?? JSON.stringify(err)}`);
     }
 
     return obj as T;
@@ -334,7 +337,7 @@ export class LLMRouter {
       }>(response);
 
       if (!Array.isArray(data.choices) || data.choices.length === 0) {
-        throw new Error(`LLM 响应格式异常: 缺少 choices 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+        throw new Error(`Некорректный формат ответа LLM: отсутствует поле choices — ${JSON.stringify(data).slice(0, 200)}`);
       }
 
       totalPromptTokens += data.usage?.prompt_tokens || 0;
@@ -345,7 +348,7 @@ export class LLMRouter {
 
       const assistantMsg = choice.message;
       if (!isRecord(assistantMsg)) {
-        throw new Error(`LLM 响应格式异常: 缺少 message 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+        throw new Error(`Некорректный формат ответа LLM: отсутствует поле message — ${JSON.stringify(data).slice(0, 200)}`);
       }
       if (assistantMsg.tool_calls !== undefined && !Array.isArray(assistantMsg.tool_calls)) {
         throw new Error("tool_calls must be an array");
@@ -365,10 +368,10 @@ export class LLMRouter {
           tool_calls: assistantMsg.tool_calls,
         });
 
-        // 通知前端正在调用工具
+        // Notify the renderer that a tool call is in progress.
         if (onChunk) {
           const toolNames = assistantMsg.tool_calls.map((tc) => tc.function.name).join(", ");
-          onChunk(`\n\n> 🔧 调用工具: ${toolNames}\n\n`);
+          onChunk(`\n\n> Вызов инструмента: ${toolNames}\n\n`);
         }
 
         for (const tc of assistantMsg.tool_calls) {
@@ -391,7 +394,7 @@ export class LLMRouter {
 
       // No tool calls → this is the final answer
       if (typeof assistantMsg.content !== "string") {
-        throw new Error(`LLM 响应格式异常: 缺少 message.content 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+        throw new Error(`Некорректный формат ответа LLM: отсутствует поле message.content — ${JSON.stringify(data).slice(0, 200)}`);
       }
       const content = assistantMsg.content;
       if (onChunk && content) onChunk(content);
@@ -463,7 +466,7 @@ export class LLMRouter {
       totalCompletionTokens += data.usage?.output_tokens || 0;
 
       if (!Array.isArray(data.content)) {
-        throw new Error(`LLM 响应格式异常: 缺少 content 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+        throw new Error(`Некорректный формат ответа LLM: отсутствует поле content — ${JSON.stringify(data).slice(0, 200)}`);
       }
 
       const toolUseBlocks = data.content.filter(
@@ -482,7 +485,7 @@ export class LLMRouter {
 
         if (onChunk) {
           const toolNames = toolUseBlocks.map((b) => b.name).join(", ");
-          onChunk(`\n\n> 🔧 调用工具: ${toolNames}\n\n`);
+          onChunk(`\n\n> Вызов инструмента: ${toolNames}\n\n`);
         }
 
         // Execute tools and push results
@@ -588,7 +591,7 @@ export class LLMRouter {
         throw new Error(`Responses API failed: ${data.error?.message || "unknown"}`);
       }
       if (!Array.isArray(data.output)) {
-        throw new Error(`LLM 响应格式异常: 缺少 output 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+        throw new Error(`Некорректный формат ответа LLM: отсутствует поле output — ${JSON.stringify(data).slice(0, 200)}`);
       }
 
       const functionCalls = data.output.filter((item) => item.type === "function_call");
@@ -606,7 +609,7 @@ export class LLMRouter {
 
         if (onChunk) {
           const toolNames = functionCalls.map((fc) => fc.name).join(", ");
-          onChunk(`\n\n> 🔧 调用工具: ${toolNames}\n\n`);
+          onChunk(`\n\n> Вызов инструмента: ${toolNames}\n\n`);
         }
 
         for (const fc of functionCalls) {
@@ -671,11 +674,11 @@ export class LLMRouter {
       usage?: { prompt_tokens: number; completion_tokens: number };
     }>(response);
     if (!Array.isArray(data.choices) || data.choices.length === 0) {
-      throw new Error(`LLM 响应格式异常: 缺少 choices 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+      throw new Error(`Некорректный формат ответа LLM: отсутствует поле choices — ${JSON.stringify(data).slice(0, 200)}`);
     }
     const content = data.choices[0]?.message?.content;
     if (typeof content !== "string") {
-      throw new Error(`LLM 响应格式异常: 缺少 message.content 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+      throw new Error(`Некорректный формат ответа LLM: отсутствует поле message.content — ${JSON.stringify(data).slice(0, 200)}`);
     }
     return {
       content,
@@ -729,7 +732,7 @@ export class LLMRouter {
       throw new Error(`Responses API failed: ${data.error?.message || "unknown"}`);
     }
     if (typeof data.output_text !== "string" && !Array.isArray(data.output)) {
-      throw new Error(`LLM 响应格式异常: 缺少 output 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+      throw new Error(`Некорректный формат ответа LLM: отсутствует поле output — ${JSON.stringify(data).slice(0, 200)}`);
     }
     const content = readResponsesOutputText(data);
     return {
@@ -775,7 +778,7 @@ export class LLMRouter {
       usage?: { input_tokens: number; output_tokens: number };
     }>(response);
     if (!Array.isArray(data.content)) {
-      throw new Error(`LLM 响应格式异常: 缺少 content 字段 — ${JSON.stringify(data).slice(0, 200)}`);
+      throw new Error(`Некорректный формат ответа LLM: отсутствует поле content — ${JSON.stringify(data).slice(0, 200)}`);
     }
     const content = readAnthropicTextContent(data);
     return {
@@ -994,7 +997,7 @@ export class LLMRouter {
           error: `${response.status} ${errorBody.slice(0, 200)}`,
         });
 
-        throw new Error(`LLM 请求失败 (${host}): ${response.status} ${errorBody.slice(0, 200)}`);
+        throw new Error(`LLM-запрос не удался (${host}): ${response.status} ${errorBody.slice(0, 200)}`);
       }
 
       // Success path
@@ -1041,13 +1044,13 @@ export class LLMRouter {
       clearTimeout(timeout);
       const durationMs = Date.now() - startTime;
 
-      if (err instanceof Error && err.message.startsWith('LLM 请求失败')) {
+      if (err instanceof Error && err.message.startsWith('LLM-запрос не удался')) {
         throw err;  // Already logged above
       }
 
       // Network-level error — log it
       const diagMsg = abortedBySignal
-        ? "LLM 请求已取消"
+        ? "LLM-запрос отменён"
         : this.diagnoseNetworkError(err as Error, url);
       this.onRequestComplete?.({
         request_url: url,
@@ -1068,7 +1071,7 @@ export class LLMRouter {
   }
 
   /**
-   * 将底层网络错误转换为用户可理解的诊断信息。
+   * Convert low-level network errors into user-readable diagnostics.
    */
   private diagnoseNetworkError(err: Error, url: string): string {
     // Node.js 18+ wraps the real error in err.cause — extract it for better diagnosis
@@ -1080,41 +1083,41 @@ export class LLMRouter {
 
     // AbortController timeout
     if (err.name === "AbortError" || msg.includes("aborted")) {
-      return `连接超时：${host} 在 ${DEFAULT_TIMEOUT / 1000} 秒内未响应。请检查 API 地址是否正确，以及网络是否可达。`;
+      return `Таймаут соединения: ${host} не ответил за ${DEFAULT_TIMEOUT / 1000} секунд. Проверьте API-адрес и доступность сети.`;
     }
 
     // DNS resolution failure
     if (msg.includes("ENOTFOUND") || msg.includes("getaddrinfo")) {
-      return `DNS 解析失败：无法解析 ${host}。请检查 API 地址拼写是否正确。`;
+      return `Ошибка DNS: не удалось разрешить ${host}. Проверьте, что API-адрес указан без опечаток.`;
     }
 
     // Connection refused (local service not running)
     if (msg.includes("ECONNREFUSED")) {
-      return `连接被拒绝：${host} 未在监听。如果使用本地中转服务，请确认该服务已启动。`;
+      return `Соединение отклонено: ${host} не принимает подключения. Если используется локальный gateway, проверьте, что он запущен.`;
     }
 
     // Connection reset
     if (msg.includes("ECONNRESET") || msg.includes("socket hang up")) {
-      return `连接被重置：${host} 中断了连接。可能是代理服务器不稳定或 API 服务限流。`;
+      return `Соединение сброшено: ${host} прервал подключение. Возможны нестабильный proxy или лимиты API-сервиса.`;
     }
 
     // SSL/TLS errors
     if (msg.includes("UNABLE_TO_VERIFY") || msg.includes("CERT_") || msg.includes("certificate") || msg.includes("SSL")) {
-      return `SSL 证书错误：无法与 ${host} 建立安全连接。如果使用自签证书的中转服务，需配置 NODE_TLS_REJECT_UNAUTHORIZED=0 环境变量（不推荐用于生产环境）。`;
+      return `Ошибка SSL-сертификата: не удалось установить защищённое соединение с ${host}. Для gateway с самоподписанным сертификатом может потребоваться NODE_TLS_REJECT_UNAUTHORIZED=0, но это не рекомендуется для production.`;
     }
 
     // Network unreachable
     if (msg.includes("ENETUNREACH") || msg.includes("EHOSTUNREACH")) {
-      return `网络不可达：无法连接到 ${host}。请检查网络连接。`;
+      return `Сеть недоступна: не удалось подключиться к ${host}. Проверьте сетевое соединение.`;
     }
 
     // Generic "fetch failed" — the most common opaque error
     if (msg.includes("fetch failed")) {
       const causeDetail = cause ? ` (${cause.code || cause.message || cause})` : '';
-      return `网络请求失败：无法连接到 ${host}${causeDetail}。常见原因：1) API 地址配置错误 2) 网络无法访问该地址（如需科学上网） 3) 本地中转服务未启动。`;
+      return `Сетевой запрос не удался: невозможно подключиться к ${host}${causeDetail}. Частые причины: 1) неверный API-адрес 2) сеть не имеет доступа к адресу 3) локальный gateway не запущен.`;
     }
 
     // Fallback: preserve original message
-    return `LLM 请求失败 (${host}): ${msg}`;
+    return `LLM-запрос не удался (${host}): ${msg}`;
   }
 }

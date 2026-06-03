@@ -11,6 +11,17 @@
  * - SceneHint, AuthChainItem: AI 分析结果类型，使用 camelCase
  */
 
+// ---- Localization ----
+
+export type AppLocale = "zh" | "en" | "ru";
+
+export interface LocalizedPromptTemplateFields {
+  name: string;
+  description: string;
+  systemPrompt: string;
+  requirements: string;
+}
+
 // ---- Session ----
 
 export type SessionStatus = "running" | "paused" | "stopped";
@@ -235,6 +246,7 @@ export interface PromptTemplate {
   requirements: string;
   isBuiltin: boolean;
   isModified: boolean;
+  localizations?: Partial<Record<AppLocale, LocalizedPromptTemplateFields>>;
 }
 
 // ---- MCP Server Config ----
@@ -438,12 +450,12 @@ export interface AssembledData {
 // ---- Analysis Purpose ----
 
 export const ANALYSIS_PURPOSES = [
-  { label: '自动识别', value: 'auto', description: '默认 — AI 自动检测场景并生成通用分析' },
-  { label: '逆向 API 协议', value: 'reverse-api', description: '聚焦 API 端点、请求/响应模式、鉴权流程、数据模型、复现代码' },
-  { label: '安全审计', value: 'security-audit', description: '聚焦认证安全、敏感数据暴露、CSRF/XSS 风险、权限控制' },
-  { label: '性能分析', value: 'performance', description: '聚焦请求时序、冗余请求、资源加载、缓存策略' },
-  { label: 'JS加密逆向', value: 'crypto-reverse', description: '聚焦JS加密算法识别、加密流程还原、密钥分析、Python复现代码' },
-  { label: '自定义...', value: 'custom', description: '输入自定义分析指令' },
+  { label: 'Автоопределение', value: 'auto', description: 'AI сам определяет сценарий и формирует общий анализ' },
+  { label: 'Реверс API-протокола', value: 'reverse-api', description: 'Фокус на API endpoint, схемах запросов и ответов, аутентификации, модели данных и коде воспроизведения' },
+  { label: 'Аудит безопасности', value: 'security-audit', description: 'Фокус на безопасности аутентификации, утечках данных, рисках CSRF/XSS и контроле доступа' },
+  { label: 'Анализ производительности', value: 'performance', description: 'Фокус на тайминге запросов, лишних запросах, загрузке ресурсов и политике кэширования' },
+  { label: 'Реверс JS-шифрования', value: 'crypto-reverse', description: 'Фокус на JS-алгоритмах шифрования, восстановлении crypto-flow, ключах и Python-коде воспроизведения' },
+  { label: 'Своя инструкция...', value: 'custom', description: 'Ввести собственный фокус анализа' },
 ] as const;
 
 export type AnalysisPurposeId = (typeof ANALYSIS_PURPOSES)[number]['value'];
@@ -584,9 +596,20 @@ export interface ElectronAPI {
   getReports: (sessionId: string) => Promise<AnalysisReport[]>;
   clearCaptureData: (sessionId: string) => Promise<void>;
 
-  startAnalysis: (sessionId: string, purpose?: string, selectedSeqs?: number[]) => Promise<AnalysisReport>;
+  startAnalysis: (
+    sessionId: string,
+    purpose?: string,
+    selectedSeqs?: number[],
+    locale?: AppLocale,
+  ) => Promise<AnalysisReport>;
   cancelAnalysis: (sessionId: string) => Promise<void>;
-  sendFollowUp: (sessionId: string, reportId: string, history: ChatMessage[], userMessage: string) => Promise<string>;
+  sendFollowUp: (
+    sessionId: string,
+    reportId: string,
+    history: ChatMessage[],
+    userMessage: string,
+    locale?: AppLocale,
+  ) => Promise<string>;
   getChatMessages: (reportId: string) => Promise<ChatMessage[]>;
   saveChatMessages: (reportId: string, messages: ChatMessage[]) => Promise<void>;
   syncBrowserBounds: (bounds: {
@@ -628,7 +651,7 @@ export interface ElectronAPI {
   onUpdateStatus: (callback: (status: UpdateStatus) => void) => void;
 
   // Prompt Templates
-  getPromptTemplates: () => Promise<PromptTemplate[]>;
+  getPromptTemplates: (locale?: AppLocale) => Promise<PromptTemplate[]>;
   savePromptTemplate: (template: PromptTemplate) => Promise<void>;
   deletePromptTemplate: (id: string) => Promise<void>;
   resetPromptTemplate: (id: string) => Promise<void>;

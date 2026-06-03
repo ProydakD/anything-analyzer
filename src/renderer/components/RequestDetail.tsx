@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Tag, Empty } from '../ui'
 import type { CapturedRequest, JsHookRecord } from '@shared/types'
+import { useLocale } from '../i18n'
 import styles from './RequestDetail.module.css'
 
 interface RequestDetailProps {
@@ -13,8 +14,8 @@ function safeParse(json: string | null): Record<string, string> | null {
   try { return JSON.parse(json) } catch { return null }
 }
 
-function formatContent(content: string | null, contentType?: string | null): string {
-  if (!content) return '(empty)'
+function formatContent(content: string | null, emptyLabel: string, contentType?: string | null): string {
+  if (!content) return emptyLabel
   const isJson = contentType?.includes('application/json') || content.trimStart().startsWith('{') || content.trimStart().startsWith('[')
   if (isJson) {
     try { return JSON.stringify(JSON.parse(content), null, 2) } catch { return content }
@@ -71,53 +72,61 @@ const KVRow: React.FC<{ k: string; v: string }> = ({ k, v }) => {
 
 // Headers tab — KV pairs layout
 const HeadersTab: React.FC<{ request: CapturedRequest }> = ({ request }) => {
+  const { t } = useLocale()
   const reqHeaders = safeParse(request.request_headers)
   const resHeaders = safeParse(request.response_headers)
   return (
     <div className={styles.kvSection}>
-      <div className={styles.sectionLabel}>REQUEST HEADERS</div>
+      <div className={styles.sectionLabel}>{t('requestDetail.requestHeaders')}</div>
       {reqHeaders ? (
         Object.entries(reqHeaders).map(([k, v]) => <KVRow key={k} k={k} v={String(v)} />)
       ) : (
-        <div className={styles.emptyHint}>(none)</div>
+        <div className={styles.emptyHint}>{t('common.none')}</div>
       )}
-      <div className={styles.sectionLabel} style={{ marginTop: 14 }}>RESPONSE HEADERS</div>
+      <div className={styles.sectionLabel} style={{ marginTop: 14 }}>{t('requestDetail.responseHeaders')}</div>
       {resHeaders ? (
         Object.entries(resHeaders).map(([k, v]) => <KVRow key={k} k={k} v={String(v)} />)
       ) : (
-        <div className={styles.emptyHint}>(none)</div>
+        <div className={styles.emptyHint}>{t('common.none')}</div>
       )}
     </div>
   )
 }
 
 // Body tab
-const BodyTab: React.FC<{ request: CapturedRequest }> = ({ request }) => (
-  <div className={styles.kvSection}>
-    <div className={styles.sectionLabel}>REQUEST BODY</div>
-    <pre className={styles.codeBlock}>{formatContent(request.request_body, request.content_type)}</pre>
-  </div>
-)
+const BodyTab: React.FC<{ request: CapturedRequest }> = ({ request }) => {
+  const { t } = useLocale()
+  return (
+    <div className={styles.kvSection}>
+      <div className={styles.sectionLabel}>{t('requestDetail.requestBody')}</div>
+      <pre className={styles.codeBlock}>{formatContent(request.request_body, t('common.empty'), request.content_type)}</pre>
+    </div>
+  )
+}
 
 // Response tab
-const ResponseTab: React.FC<{ request: CapturedRequest }> = ({ request }) => (
-  <div className={styles.kvSection}>
-    <div className={styles.metaGrid}>
-      <div className={styles.metaLabel}>Status</div>
-      <div className={styles.metaValue}>{request.status_code ?? '--'}</div>
-      <div className={styles.metaLabel}>Content-Type</div>
-      <div className={styles.metaValue}>{request.content_type ?? '--'}</div>
-      <div className={styles.metaLabel}>Duration</div>
-      <div className={styles.metaValue}>{request.duration_ms != null ? `${request.duration_ms} ms` : '--'}</div>
+const ResponseTab: React.FC<{ request: CapturedRequest }> = ({ request }) => {
+  const { t } = useLocale()
+  return (
+    <div className={styles.kvSection}>
+      <div className={styles.metaGrid}>
+        <div className={styles.metaLabel}>{t('requestDetail.status')}</div>
+        <div className={styles.metaValue}>{request.status_code ?? '--'}</div>
+        <div className={styles.metaLabel}>{t('requestDetail.contentType')}</div>
+        <div className={styles.metaValue}>{request.content_type ?? '--'}</div>
+        <div className={styles.metaLabel}>{t('requestDetail.duration')}</div>
+        <div className={styles.metaValue}>{request.duration_ms != null ? `${request.duration_ms} ms` : '--'}</div>
+      </div>
+      <div className={styles.sectionLabel}>{t('requestDetail.responseBody')}</div>
+      <pre className={styles.codeBlock}>{formatContent(request.response_body, t('common.empty'), request.content_type)}</pre>
     </div>
-    <div className={styles.sectionLabel}>RESPONSE BODY</div>
-    <pre className={styles.codeBlock}>{formatContent(request.response_body, request.content_type)}</pre>
-  </div>
-)
+  )
+}
 
 // Hooks tab
 const HooksTab: React.FC<{ hooks: JsHookRecord[] }> = ({ hooks }) => {
-  if (hooks.length === 0) return <Empty description="No related hooks found" />
+  const { t } = useLocale()
+  if (hooks.length === 0) return <Empty description={t('requestDetail.noHooks')} />
   return (
     <div className={styles.hookList}>
       {hooks.map((hook) => (
@@ -134,15 +143,15 @@ const HooksTab: React.FC<{ hooks: JsHookRecord[] }> = ({ hooks }) => {
   )
 }
 
-const TAB_LIST: { key: DetailTab; label: string }[] = [
-  { key: 'headers', label: 'Headers' },
-  { key: 'body', label: 'Body' },
-  { key: 'response', label: 'Response' },
-  { key: 'hooks', label: 'Hooks' },
-]
-
 const RequestDetail: React.FC<RequestDetailProps> = ({ request, hooks }) => {
+  const { t } = useLocale()
   const [activeKey, setActiveKey] = useState<DetailTab>('headers')
+  const tabList: { key: DetailTab; label: string }[] = [
+    { key: 'headers', label: t('requestDetail.headers') },
+    { key: 'body', label: t('requestDetail.body') },
+    { key: 'response', label: t('requestDetail.response') },
+    { key: 'hooks', label: t('requestDetail.hooks') },
+  ]
 
   const relatedHooks = useMemo(() => {
     if (!request) return []
@@ -156,7 +165,7 @@ const RequestDetail: React.FC<RequestDetailProps> = ({ request, hooks }) => {
   if (!request) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
-        <Empty description="Select a request to view details" />
+        <Empty description={t('requestDetail.selectRequest')} />
       </div>
     )
   }
@@ -177,7 +186,7 @@ const RequestDetail: React.FC<RequestDetailProps> = ({ request, hooks }) => {
 
       {/* Simple text tabs */}
       <div className={styles.detailTabs}>
-        {TAB_LIST.map(tab => (
+        {tabList.map(tab => (
           <button
             key={tab.key}
             className={`${styles.detailTab} ${activeKey === tab.key ? styles.detailTabActive : ''}`}

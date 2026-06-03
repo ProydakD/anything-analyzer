@@ -2,6 +2,7 @@ import React, { useMemo, useCallback, useState } from 'react'
 import { VirtualTable } from '../ui'
 import type { VTColumn, VTRowSelection } from '../ui'
 import type { CapturedRequest } from '@shared/types'
+import { useLocale } from '../i18n'
 import styles from './RequestLog.module.css'
 
 interface RequestLogProps {
@@ -51,6 +52,7 @@ function extractHost(url: string): string {
 }
 
 const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect, selectedSeqs, onSelectedSeqsChange }) => {
+  const { t } = useLocale()
   const [searchText, setSearchText] = useState('')
 
   // Pre-filter by search text only (method filter now handled by VirtualTable column filter)
@@ -89,7 +91,7 @@ const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect,
     },
     {
       key: 'method',
-      title: 'Method',
+      title: t('requestLog.method'),
       dataIndex: 'method',
       width: 100,
       filters: methodFilters,
@@ -101,7 +103,7 @@ const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect,
     },
     {
       key: 'domain',
-      title: 'Domain',
+      title: t('requestLog.domain'),
       dataIndex: 'url',
       width: 180,
       filters: domainFilters,
@@ -115,7 +117,7 @@ const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect,
     },
     {
       key: 'url',
-      title: 'Path',
+      title: t('requestLog.path'),
       dataIndex: 'url',
       render: (_val, record) => (
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={record.url}>
@@ -125,7 +127,7 @@ const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect,
     },
     {
       key: 'status_code',
-      title: 'Status',
+      title: t('requestLog.status'),
       dataIndex: 'status_code',
       width: 70,
       render: (val) => {
@@ -136,7 +138,7 @@ const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect,
     },
     {
       key: 'duration_ms',
-      title: 'Time',
+      title: t('requestLog.time'),
       dataIndex: 'duration_ms',
       width: 80,
       render: (val) => {
@@ -147,7 +149,7 @@ const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect,
     },
     {
       key: 'source',
-      title: 'Source',
+      title: t('requestLog.source'),
       dataIndex: 'source',
       width: 90,
       filters: sourceFilters,
@@ -162,7 +164,7 @@ const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect,
         )
       },
     },
-  ], [methodFilters, domainFilters, sourceFilters])
+  ], [methodFilters, domainFilters, sourceFilters, t])
 
   const handleRow = useCallback((record: CapturedRequest) => ({
     onClick: () => onSelect(record),
@@ -186,7 +188,7 @@ const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect,
             className={styles.searchInput}
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
-            placeholder="搜索 URL..."
+            placeholder={t('requestLog.searchPlaceholder')}
           />
         </div>
       </div>
@@ -199,7 +201,7 @@ const RequestLog: React.FC<RequestLogProps> = ({ requests, selectedId, onSelect,
         rowHeight={32}
         rowSelection={rowSelection}
         onRow={handleRow}
-        emptyText="No requests captured yet"
+        emptyText={t('requestLog.empty')}
       />
     </div>
   )

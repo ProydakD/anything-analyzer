@@ -115,13 +115,13 @@ export class DataAssembler {
     const authChain: AuthChainItem[] = []
 
     for (const req of requests) {
-      // 检查响应中是否返回了 token
+      // Check whether the response returned a token.
       if (req.responseBody) {
         try {
           const data = JSON.parse(req.responseBody)
           if (data.access_token) {
             authChain.push({
-              source: `${req.method} ${new URL(req.url).pathname} 响应`,
+              source: `${req.method} ${new URL(req.url).pathname} ответ`,
               credentialType: 'Bearer Token',
               credential: this.maskCredential(data.access_token),
               consumers: []
@@ -129,7 +129,7 @@ export class DataAssembler {
           }
           if (data.refresh_token) {
             authChain.push({
-              source: `${req.method} ${new URL(req.url).pathname} 响应`,
+              source: `${req.method} ${new URL(req.url).pathname} ответ`,
               credentialType: 'Refresh Token',
               credential: this.maskCredential(data.refresh_token),
               consumers: []
@@ -138,7 +138,7 @@ export class DataAssembler {
         } catch { /* non-JSON response */ }
       }
 
-      // 检查响应中的 Set-Cookie
+      // Check Set-Cookie in the response.
       if (req.responseHeaders) {
         const rawSetCookie = req.responseHeaders['set-cookie'] || req.responseHeaders['Set-Cookie']
         if (rawSetCookie) {
@@ -156,7 +156,7 @@ export class DataAssembler {
       }
     }
 
-    // 标记 consumers：哪些后续请求使用了这些凭据
+    // Mark consumers: later requests that use these credentials.
     for (const req of requests) {
       const authHeader = req.headers['authorization'] || req.headers['Authorization'] || ''
       if (authHeader.startsWith('Bearer ')) {

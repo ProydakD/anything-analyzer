@@ -21,10 +21,8 @@ import { useTabs } from './hooks/useTabs'
 import { useConfirm } from './hooks/useConfirm'
 import { useToast } from './ui/Toast'
 
-import { LocaleProvider } from './i18n'
-import { zh } from './i18n/zh'
-import { en } from './i18n/en'
-import type { LocaleKey } from './i18n'
+import { LocaleProvider, getInitialLocale, getNextLocale, translate } from './i18n'
+import type { Locale, LocaleKey } from './i18n'
 
 function App(): React.ReactElement {
   const toast = useToast()
@@ -55,21 +53,14 @@ function App(): React.ReactElement {
     const saved = localStorage.getItem('app-theme')
     return saved && THEMES.some(t => t.id === saved) ? saved : DEFAULT_THEME
   })
-  const [appLocale, setAppLocale] = useState<'en' | 'zh'>(() => {
-    return (localStorage.getItem('app-locale') as 'en' | 'zh') || 'zh'
+  const [appLocale, setAppLocale] = useState<Locale>(() => {
+    return getInitialLocale()
   })
 
   // Simple t() for App-level strings (outside LocaleProvider context)
-  const localeMaps: Record<string, Record<string, string>> = { zh, en }
   const t = useCallback((key: LocaleKey, vars?: Record<string, string | number>) => {
-    let text = localeMaps[appLocale]?.[key] ?? zh[key] ?? key
-    if (vars) {
-      Object.entries(vars).forEach(([k, v]) => {
-        text = text.replace(`{${k}}`, String(v))
-      })
-    }
-    return text
-  }, [appLocale]) // eslint-disable-line react-hooks/exhaustive-deps
+    return translate(appLocale, key, vars)
+  }, [appLocale])
 
   const handleThemeChange = useCallback((themeId: string) => {
     setAppTheme(themeId)
@@ -83,7 +74,7 @@ function App(): React.ReactElement {
 
   const handleLocaleToggle = useCallback(() => {
     setAppLocale(prev => {
-      const next = prev === 'zh' ? 'en' : 'zh'
+      const next = getNextLocale(prev)
       localStorage.setItem('app-locale', next)
       return next
     })
@@ -117,7 +108,7 @@ function App(): React.ReactElement {
   /** Ref to browser placeholder for reporting exact bounds to main process */
   const placeholderRef = useRef<HTMLDivElement>(null)
 
-  const { requests, hooks, snapshots, reports, interactions, isAnalyzing, analysisError, streamingContent, startAnalysis, cancelAnalysis, chatHistory, isChatting, chatError, sendFollowUp, clearCaptureData } = useCapture(currentSessionId)
+  const { requests, hooks, snapshots, reports, interactions, isAnalyzing, analysisError, streamingContent, startAnalysis, cancelAnalysis, chatHistory, isChatting, chatError, sendFollowUp, clearCaptureData } = useCapture(currentSessionId, appLocale)
 
   const selectedRequest = requests.find(r => r.id === selectedRequestId) || null
 
@@ -192,8 +183,8 @@ function App(): React.ReactElement {
   const handleAnalyze = useCallback(async (purpose?: string) => {
     if (!currentSessionId) return
     setActiveView('report')
-    await startAnalysis(currentSessionId, purpose, selectedSeqs.length > 0 ? selectedSeqs : undefined)
-  }, [currentSessionId, startAnalysis, selectedSeqs])
+    await startAnalysis(currentSessionId, purpose, selectedSeqs.length > 0 ? selectedSeqs : undefined, appLocale)
+  }, [currentSessionId, startAnalysis, selectedSeqs, appLocale])
 
   // Cancel analysis handler
   const handleCancelAnalysis = useCallback(async () => {

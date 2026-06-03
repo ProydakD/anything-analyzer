@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Button } from './Button'
+import { useLocale } from '../i18n'
 import styles from './Popconfirm.module.css'
 
 export interface PopconfirmProps {
@@ -17,11 +18,12 @@ export const Popconfirm: React.FC<PopconfirmProps> = ({
   title,
   onConfirm,
   onCancel,
-  okText = 'OK',
-  cancelText = 'Cancel',
+  okText,
+  cancelText,
   align = 'center',
   children,
 }) => {
+  const { t } = useLocale()
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
@@ -61,10 +63,10 @@ export const Popconfirm: React.FC<PopconfirmProps> = ({
           <div className={styles.message}>{title}</div>
           <div className={styles.actions}>
             <Button size="sm" onClick={handleCancel}>
-              {cancelText}
+              {cancelText ?? t('common.cancel')}
             </Button>
             <Button size="sm" variant="danger" onClick={handleConfirm}>
-              {okText}
+              {okText ?? t('common.ok')}
             </Button>
           </div>
         </div>

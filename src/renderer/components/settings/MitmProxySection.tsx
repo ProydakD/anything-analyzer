@@ -8,9 +8,11 @@ import {
   IconWifi,
 } from '../../ui/Icons'
 import type { MitmProxyConfig } from '@shared/types'
+import { useLocale } from '../../i18n'
 
 export default function MitmProxySection() {
   const toast = useToast()
+  const { t } = useLocale()
   const [mitmEnabled, setMitmEnabled] = useState(false)
   const [mitmPort, setMitmPort] = useState(8888)
   const [mitmRunning, setMitmRunning] = useState(false)
@@ -42,20 +44,20 @@ export default function MitmProxySection() {
       <div>
         <Badge
           color={mitmRunning ? 'var(--color-success)' : 'var(--text-muted)'}
-          label={mitmRunning ? '运行中' : '已停止'}
+          label={mitmRunning ? t('mitm.running') : t('mitm.stopped')}
           style={{ fontSize: 'var(--font-size-sm)' }}
         />
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 'var(--font-size-base)' }}>启用 MITM 代理</span>
+        <span style={{ fontSize: 'var(--font-size-base)' }}>{t('mitm.enable')}</span>
         <Switch checked={mitmEnabled} onChange={setMitmEnabled} />
       </div>
 
       {mitmEnabled && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 'var(--font-size-base)' }}>端口</span>
+            <span style={{ fontSize: 'var(--font-size-base)' }}>{t('mitm.port')}</span>
             <InputNumber
               min={1024}
               max={65535}
@@ -67,10 +69,10 @@ export default function MitmProxySection() {
 
           {/* System Proxy Toggle */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Tooltip title="将系统 HTTP/HTTPS 代理指向 MITM 代理，无需手动配置即可捕获所有应用流量">
+            <Tooltip title={t('mitm.systemProxyTooltip')}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-base)', cursor: 'default' }}>
                 <IconWifi size={14} />
-                设为系统代理
+                {t('mitm.systemProxy')}
               </span>
             </Tooltip>
             <Switch
@@ -83,17 +85,17 @@ export default function MitmProxySection() {
                     const result = await window.electronAPI.enableMitmSystemProxy()
                     if (result.success) {
                       setMitmSystemProxy(true)
-                      toast.success('已设为系统代理')
+                      toast.success(t('mitm.systemProxyEnabled'))
                     } else {
-                      toast.error(result.error || '设置系统代理失败')
+                      toast.error(result.error || t('mitm.systemProxyEnableFailed'))
                     }
                   } else {
                     const result = await window.electronAPI.disableMitmSystemProxy()
                     if (result.success) {
                       setMitmSystemProxy(false)
-                      toast.success('已取消系统代理')
+                      toast.success(t('mitm.systemProxyDisabled'))
                     } else {
-                      toast.error(result.error || '取消系统代理失败')
+                      toast.error(result.error || t('mitm.systemProxyDisableFailed'))
                     }
                   }
                 } finally {
@@ -104,13 +106,13 @@ export default function MitmProxySection() {
           </div>
           {mitmSystemProxy && (
             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-              所有应用的流量将自动通过 MITM 代理，关闭应用时自动还原
+              {t('mitm.systemProxyHint')}
             </span>
           )}
 
           {/* CA Certificate Management */}
           <div style={{ marginTop: 4 }}>
-            <span style={{ fontWeight: 600, fontSize: 'var(--font-size-base)' }}>CA 证书管理</span>
+            <span style={{ fontWeight: 600, fontSize: 'var(--font-size-base)' }}>{t('mitm.caManagement')}</span>
           </div>
 
           {!mitmCaInstalled ? (
@@ -124,7 +126,7 @@ export default function MitmProxySection() {
                 fontSize: 'var(--font-size-sm)',
                 color: 'var(--text-primary)',
               }}>
-                ⚠ CA 证书未安装到系统，HTTPS 流量将无法拦截
+                ⚠ {t('mitm.caNotInstalled')}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button
@@ -137,22 +139,22 @@ export default function MitmProxySection() {
                       const result = await window.electronAPI.installMitmCA()
                       if (result.success) {
                         setMitmCaInstalled(true)
-                        toast.success('CA 证书已安装到系统信任链')
+                        toast.success(t('mitm.caInstallSuccess'))
                       } else {
-                        toast.error(result.error || '安装失败')
+                        toast.error(result.error || t('mitm.caInstallFailed'))
                       }
                     } finally {
                       setMitmLoading(false)
                     }
                   }}
                 >
-                  一键安装 CA 证书
+                  {t('mitm.caInstall')}
                 </Button>
                 <Button
                   icon={<IconExport size={14} />}
                   onClick={() => window.electronAPI.exportMitmCA()}
                 >
-                  导出
+                  {t('mitm.caExport')}
                 </Button>
               </div>
             </>
@@ -167,7 +169,7 @@ export default function MitmProxySection() {
                 fontSize: 'var(--font-size-sm)',
                 color: 'var(--text-primary)',
               }}>
-                ✓ CA 证书已安装
+                ✓ {t('mitm.caInstalled')}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Button
@@ -179,22 +181,22 @@ export default function MitmProxySection() {
                       const result = await window.electronAPI.uninstallMitmCA()
                       if (result.success) {
                         setMitmCaInstalled(false)
-                        toast.success('CA 证书已卸载')
+                        toast.success(t('mitm.caUninstallSuccess'))
                       } else {
-                        toast.error(result.error || '卸载失败')
+                        toast.error(result.error || t('mitm.caUninstallFailed'))
                       }
                     } finally {
                       setMitmLoading(false)
                     }
                   }}
                 >
-                  卸载证书
+                  {t('mitm.caUninstall')}
                 </Button>
                 <Button
                   icon={<IconExport size={14} />}
                   onClick={() => window.electronAPI.exportMitmCA()}
                 >
-                  导出
+                  {t('mitm.caExport')}
                 </Button>
                 <Button
                   variant="danger"
@@ -202,7 +204,7 @@ export default function MitmProxySection() {
                   loading={mitmLoading}
                   onClick={() => setRegenConfirmOpen(true)}
                 >
-                  重新生成 CA
+                  {t('mitm.caRegenerate')}
                 </Button>
               </div>
             </>
@@ -212,7 +214,7 @@ export default function MitmProxySection() {
           {!mitmSystemProxy && (
             <div style={{ marginTop: 4 }}>
               <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                在外部浏览器/设备中配置 HTTP 代理为：
+                {t('mitm.manualProxyHint')}
               </span>
               <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {localIPs.length > 0 ? localIPs.map(ip => (
@@ -234,7 +236,7 @@ export default function MitmProxySection() {
                     fontSize: 'var(--font-size-sm)',
                     fontFamily: 'var(--font-mono)',
                   }}>
-                    http://&lt;本机IP&gt;:{mitmPort}
+                    http://&lt;{t('mitm.localIpPlaceholder')}&gt;:{mitmPort}
                   </code>
                 )}
               </div>
@@ -252,7 +254,7 @@ export default function MitmProxySection() {
             color: 'var(--text-secondary)',
             lineHeight: 1.6,
           }}>
-            📱 手机安装证书：连接代理后，用浏览器访问{' '}
+            📱 {t('mitm.mobileCertHint')}{' '}
             <code style={{
               background: 'var(--color-surface)',
               padding: '1px 5px',
@@ -275,22 +277,22 @@ export default function MitmProxySection() {
           systemProxy: mitmSystemProxy,
         }
         await window.electronAPI.saveMitmProxyConfig(config)
-        toast.success('MITM 代理设置已保存')
+        toast.success(t('mitm.saved'))
         const status = await window.electronAPI.getMitmProxyStatus()
         setMitmRunning(status.running)
         setMitmCaInitialized(status.caInitialized)
       }}>
-        保存 MITM 代理设置
+        {t('mitm.save')}
       </Button>
 
       {/* Confirm modal for regenerating CA */}
       <Modal
         open={regenConfirmOpen}
         onClose={() => setRegenConfirmOpen(false)}
-        title="重新生成 CA"
+        title={t('mitm.regenTitle')}
         footer={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={() => setRegenConfirmOpen(false)}>取消</Button>
+            <Button onClick={() => setRegenConfirmOpen(false)}>{t('common.cancel')}</Button>
             <Button
               variant="danger"
               onClick={async () => {
@@ -300,19 +302,19 @@ export default function MitmProxySection() {
                   await window.electronAPI.regenerateMitmCA()
                   setMitmCaInstalled(false)
                   setMitmRunning(false)
-                  toast.success('CA 已重新生成，请重新安装证书')
+                  toast.success(t('mitm.caRegenerated'))
                 } finally {
                   setMitmLoading(false)
                 }
               }}
             >
-              确认
+              {t('common.confirm')}
             </Button>
           </div>
         }
       >
         <p style={{ margin: 0, fontSize: 'var(--font-size-base)' }}>
-          重新生成后需要重新安装证书，已配置代理的设备将出现证书错误。确定继续？
+          {t('mitm.regenConfirm')}
         </p>
       </Modal>
     </div>

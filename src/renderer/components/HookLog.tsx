@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { VirtualTable, Tag, CopyableBlock } from '../ui'
 import type { VTColumn } from '../ui'
 import type { JsHookRecord, HookType } from '@shared/types'
+import { useLocale } from '../i18n'
 
 interface HookLogProps {
   hooks: JsHookRecord[]
@@ -21,8 +22,8 @@ function truncate(str: string | null, maxLen = 80): string {
   return str.length > maxLen ? str.slice(0, maxLen) + '...' : str
 }
 
-function prettyJson(str: string | null): string {
-  if (!str) return '(empty)'
+function prettyJson(str: string | null, emptyLabel: string): string {
+  if (!str) return emptyLabel
   try {
     return JSON.stringify(JSON.parse(str), null, 2)
   } catch {
@@ -32,40 +33,48 @@ function prettyJson(str: string | null): string {
 
 // Expanded row content
 const ExpandedRow: React.FC<{ record: JsHookRecord }> = ({ record }) => (
-  <div style={{ padding: '4px 0' }}>
-    <CopyableBlock label="Arguments" content={prettyJson(record.arguments)} />
-    {record.result && <CopyableBlock label="Result" content={prettyJson(record.result)} />}
-    {record.call_stack && (
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>Call Stack</div>
-        <pre style={{
-          background: 'var(--color-surface)',
-          padding: 10,
-          borderRadius: 6,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 'var(--font-size-xs)',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-all',
-          color: 'var(--text-muted)',
-          margin: 0,
-        }}>
-          {record.call_stack}
-        </pre>
-      </div>
-    )}
-    {record.related_request_id && (
-      <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)' }}>
-        Related Request ID: <code style={{ background: 'var(--color-surface)', padding: '1px 4px', borderRadius: 3, fontSize: 'var(--font-size-xs)' }}>{record.related_request_id}</code>
-      </div>
-    )}
-  </div>
+  <ExpandedHookRow record={record} />
 )
 
+const ExpandedHookRow: React.FC<{ record: JsHookRecord }> = ({ record }) => {
+  const { t } = useLocale()
+  return (
+    <div style={{ padding: '4px 0' }}>
+      <CopyableBlock label={t('hookLog.arguments')} content={prettyJson(record.arguments, t('common.empty'))} />
+      {record.result && <CopyableBlock label={t('hookLog.result')} content={prettyJson(record.result, t('common.empty'))} />}
+      {record.call_stack && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>{t('hookLog.callStack')}</div>
+          <pre style={{
+            background: 'var(--color-surface)',
+            padding: 10,
+            borderRadius: 6,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--font-size-xs)',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+            color: 'var(--text-muted)',
+            margin: 0,
+          }}>
+            {record.call_stack}
+          </pre>
+        </div>
+      )}
+      {record.related_request_id && (
+        <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)' }}>
+          {t('hookLog.relatedRequestId')}: <code style={{ background: 'var(--color-surface)', padding: '1px 4px', borderRadius: 3, fontSize: 'var(--font-size-xs)' }}>{record.related_request_id}</code>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const HookLog: React.FC<HookLogProps> = ({ hooks }) => {
+  const { t } = useLocale()
   const columns: VTColumn<JsHookRecord>[] = useMemo(() => [
     {
       key: 'timestamp',
-      title: 'Time',
+      title: t('hookLog.time'),
       dataIndex: 'timestamp',
       width: 100,
       render: (val) => new Date(val as number).toLocaleTimeString(),
@@ -73,7 +82,7 @@ const HookLog: React.FC<HookLogProps> = ({ hooks }) => {
     },
     {
       key: 'hook_type',
-      title: 'Type',
+      title: t('hookLog.type'),
       dataIndex: 'hook_type',
       width: 110,
       render: (val) => <Tag color={HOOK_TYPE_COLORS[val as HookType] || 'default'}>{val as string}</Tag>,
@@ -82,7 +91,7 @@ const HookLog: React.FC<HookLogProps> = ({ hooks }) => {
     },
     {
       key: 'function_name',
-      title: 'Function',
+      title: t('hookLog.function'),
       dataIndex: 'function_name',
       width: 160,
       render: (val) => (
@@ -93,7 +102,7 @@ const HookLog: React.FC<HookLogProps> = ({ hooks }) => {
     },
     {
       key: 'arguments',
-      title: 'Arguments',
+      title: t('hookLog.arguments'),
       dataIndex: 'arguments',
       render: (val) => (
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--font-size-sm)' }} title={val as string}>
@@ -103,7 +112,7 @@ const HookLog: React.FC<HookLogProps> = ({ hooks }) => {
     },
     {
       key: 'result',
-      title: 'Result',
+      title: t('hookLog.result'),
       dataIndex: 'result',
       width: 200,
       render: (val) => (
@@ -112,7 +121,7 @@ const HookLog: React.FC<HookLogProps> = ({ hooks }) => {
         </span>
       ),
     },
-  ], [])
+  ], [t])
 
   return (
     <VirtualTable<JsHookRecord>
@@ -124,7 +133,7 @@ const HookLog: React.FC<HookLogProps> = ({ hooks }) => {
         expandedRowRender: (record) => <ExpandedRow record={record} />,
         rowExpandable: () => true,
       }}
-      emptyText="No hook records captured yet"
+      emptyText={t('hookLog.empty')}
     />
   )
 }
