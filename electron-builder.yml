@@ -10,8 +10,9 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 publish:
   provider: github
-  owner: Mouseww
+  owner: ProydakD
   repo: anything-analyzer
+  channel: ru
 win:
   target:
     - nsis
